@@ -101,11 +101,12 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        Debug.Log(-Mathf.Sin(Mathf.Abs(groundAngle)));
+        Debug.Log(Mathf.Cos(groundAngle));
         //Sets velocity
-        rb2D.velocity = (_currentSpeed * transform.right*Mathf.Cos(groundAngle))  
-            + (transform.up * -Mathf.Sin(Mathf.Abs(groundAngle)));
+        _currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
+        rb2D.velocity = (_currentSpeed * transform.right*Mathf.Cos(groundAngle)) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle)));
 
+        //rb2D.velocity = _currentSpeed * transform.right;
         //Applies a ground check on each of the cardinal directions of the player
         hitdown = Physics2D.Raycast(transform.position, -Vector2.up, GroundCheckDistance, GroundLayer);
         Debug.DrawRay(transform.position, -Vector2.up * GroundCheckDistance, Color.red);
@@ -135,6 +136,7 @@ public class PlayerMovement : MonoBehaviour
         {
             _isGrounded = false;
             //StartCoroutine(CorrectRotation());
+            groundAngle = 0;
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.01f);
             
         }
@@ -167,33 +169,7 @@ public class PlayerMovement : MonoBehaviour
     //Checks the height of slopes to see if they can be ran up
     private void SlopeCheck()
     {
-        //switch (index)
-        //{
-        //    case 0:
-        //        if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - transform.rotation.eulerAngles.z) < SlopeLimit)
-        //        {
-        //            Debug.Log("Hi");
-        //            index = 1;
-        //        }
-        //        else if (hitleft)
-        //        {
-        //            Debug.Log("Hi");
-        //            index = 3;
-        //        }
-        //        break;
-        //    case 1:
-        //        if (hitdown)
-        //        {
-        //            index = 0;
-        //        }
-        //        break;
-        //    case 3:
-        //        if (hitdown)
-        //        {
-        //            index = 0;
-        //        }
-        //        break;
-        //}
+        
         if (hitdown && index != 0)
         {
             index = 0;
