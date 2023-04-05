@@ -17,7 +17,7 @@ public class PlayerMovement : MonoBehaviour
 
     //Ground and Slope Checks
     [Header("Ground and Slope Checks")]
-    private RaycastHit2D hitdown, hitright, hitleft, hitup;
+    private RaycastHit2D hitdown, hitright, hitleft, hitup,rotationhit;
     private RaycastHit2D[] GroundCheck;
     private int index;
     private float slopeRotationAngle;
@@ -28,6 +28,7 @@ public class PlayerMovement : MonoBehaviour
 
     public float SlopeLimit;
     public float SlopeMultiplier;
+    public float SlopeStickiness;
     public float GroundCheckDistance = 0.7f;
     public LayerMask GroundLayer;
     
@@ -64,11 +65,56 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        //rb2D.velocity = _currentSpeed * transform.right;
+        //Applies a ground check on each of the cardinal directions of the player
+        hitdown = Physics2D.Raycast(transform.position, -Vector2.up, GroundCheckDistance, GroundLayer);
+        Debug.DrawRay(transform.position, -Vector2.up * GroundCheckDistance, Color.red);
+
+        hitleft = Physics2D.Raycast(transform.position, -Vector2.right, GroundCheckDistance, GroundLayer);
+        Debug.DrawRay(transform.position, Vector2.left * (GroundCheckDistance), Color.red);
+
+        hitright = Physics2D.Raycast(transform.position, Vector2.right, GroundCheckDistance, GroundLayer);
+        Debug.DrawRay(transform.position, Vector2.right * (GroundCheckDistance), Color.red);
+
+        hitup = Physics2D.Raycast(transform.position, Vector2.up, GroundCheckDistance, GroundLayer);
+        Debug.DrawRay(transform.position, Vector2.up * GroundCheckDistance, Color.red);
+
+        rotationhit = Physics2D.Raycast(transform.position, -transform.up, GroundCheckDistance, GroundLayer);
+        Debug.DrawRay(transform.position, Vector2.up * GroundCheckDistance, Color.blue);
+
+        GroundCheck[0] = hitdown;
+        GroundCheck[1] = hitright;
+        GroundCheck[2] = hitup;
+        GroundCheck[3] = hitleft;
+        SlopeCheck();
     }
 
+   
     private void FixedUpdate()
     {
+        //Rotates Player if the player is grounded
+        if (GroundCheck[index].collider != null)
+        {
+            RotatePlayer();
+            //Adds force to let player stick on walls
+            //rb2D.AddForce(-transform.up * Gravity * Time.deltaTime);
+        }
+        else
+        {
+            _isGrounded = false;
+            //StartCoroutine(CorrectRotation());
+            groundAngle = 0;
+            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.01f);
+            
+        }
+        
+
+        slopeRotationAngle = transform.rotation.eulerAngles.z;
+        if(slopeRotationAngle>180)
+        {
+            slopeRotationAngle -= 360;
+        }
+        //rb2D.AddForce(-Vector2.up * Gravity * Time.deltaTime);
 
         //Gets the movement action value
         moveAction = playerInput.actions["Move"];
@@ -95,7 +141,7 @@ public class PlayerMovement : MonoBehaviour
         {
             //Slowly moves player speed to 0 if movement input is 0
 
-            if(_currentSpeed>0 || _currentSpeed<0)
+            if (_currentSpeed > 0 || _currentSpeed < 0)
             {
                 _currentSpeed = Mathf.MoveTowards(_currentSpeed, 0.0f, Acceleration);
             }
@@ -104,50 +150,7 @@ public class PlayerMovement : MonoBehaviour
         Debug.Log(Mathf.Cos(groundAngle));
         //Sets velocity
         _currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
-        rb2D.velocity = (_currentSpeed * transform.right*Mathf.Cos(groundAngle)) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle)));
-
-        //rb2D.velocity = _currentSpeed * transform.right;
-        //Applies a ground check on each of the cardinal directions of the player
-        hitdown = Physics2D.Raycast(transform.position, -Vector2.up, GroundCheckDistance, GroundLayer);
-        Debug.DrawRay(transform.position, -Vector2.up * GroundCheckDistance, Color.red);
-
-        hitleft = Physics2D.Raycast(transform.position, -Vector2.right, GroundCheckDistance, GroundLayer);
-        Debug.DrawRay(transform.position, Vector2.left * (GroundCheckDistance), Color.red);
-
-        hitright = Physics2D.Raycast(transform.position , Vector2.right, GroundCheckDistance, GroundLayer);
-        Debug.DrawRay(transform.position, Vector2.right * (GroundCheckDistance), Color.red);
-
-        hitup = Physics2D.Raycast(transform.position, Vector2.up, GroundCheckDistance, GroundLayer);
-        Debug.DrawRay(transform.position, Vector2.up * GroundCheckDistance, Color.red);
-
-        GroundCheck[0] = hitdown;
-        GroundCheck[1] = hitright;
-        GroundCheck[2] = hitup;
-        GroundCheck[3] = hitleft;
-
-        //Rotates Player if the player is grounded
-        if (GroundCheck[index].collider != null)
-        {
-            RotatePlayer();
-            //Adds force to let player stick on walls
-            //rb2D.AddForce(-transform.up * Gravity * Time.deltaTime);
-        }
-        else
-        {
-            _isGrounded = false;
-            //StartCoroutine(CorrectRotation());
-            groundAngle = 0;
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.01f);
-            
-        }
-        SlopeCheck();
-
-        slopeRotationAngle = transform.rotation.eulerAngles.z;
-        if(slopeRotationAngle>180)
-        {
-            slopeRotationAngle -= 360;
-        }
-        //rb2D.AddForce(-Vector2.up * Gravity * Time.deltaTime);
+        rb2D.velocity = (_currentSpeed * transform.right) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle))) + (transform.up * -SlopeStickiness);
     }
 
     //rotates player based on slope
@@ -158,8 +161,9 @@ public class PlayerMovement : MonoBehaviour
 
         //Debug.Log("Hit collider " + GroundCheck[index].collider + ", at " + GroundCheck[index].point + ", normal " + GroundCheck[index].normal);
         Debug.DrawRay(GroundCheck[index].point, GroundCheck[index].normal * 2f, Color.green);
-        groundAngle = Mathf.Atan2(-GroundCheck[index].normal.x, GroundCheck[index].normal.y);
-        transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, Mathf.Rad2Deg * groundAngle), 0.2f);
+        Debug.DrawRay(rotationhit.point, rotationhit.normal * 2f, Color.yellow);
+        groundAngle = Mathf.Atan2(-rotationhit.normal.x, rotationhit.normal.y);
+        transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, Mathf.Rad2Deg * groundAngle), 1f);
         //transform.rotation = Quaternion.Euler(0, 0, Mathf.Rad2Deg * Mathf.Atan2(-GroundCheck[index].normal.x,GroundCheck[index].normal.y));
         //storedRotation = new Vector2(GroundCheck[index].normal.x * 1.5f, GroundCheck[index].normal.y / 1.5f).normalized;
         //_isFalling = false;
@@ -173,6 +177,7 @@ public class PlayerMovement : MonoBehaviour
         if (hitdown && index != 0)
         {
             index = 0;
+            groundAngle = transform.rotation.z;
         }
 
         if (hitright && index != 1)
@@ -181,6 +186,7 @@ public class PlayerMovement : MonoBehaviour
             {
                 Debug.Log("Hi");
                 index = 1;
+                groundAngle = transform.rotation.z;
             }
             else
             {
@@ -200,6 +206,7 @@ public class PlayerMovement : MonoBehaviour
             {
                 Debug.Log("Hi");
                 index = 2;
+                groundAngle = transform.rotation.z;
             }
 
         }
@@ -211,6 +218,7 @@ public class PlayerMovement : MonoBehaviour
             {
                 Debug.Log("Hi");
                 index = 3;
+                groundAngle = transform.rotation.z;
             }
 
         }
