@@ -20,6 +20,7 @@ public class PlayerMovement : MonoBehaviour
     private RaycastHit2D hitdown, hitright, hitleft, hitup,rotationhit;
     private RaycastHit2D[] GroundCheck;
     private int index;
+    private int groundVar;
     private float slopeRotationAngle;
     private float slopeValue;
     private float sideOffset;
@@ -42,8 +43,15 @@ public class PlayerMovement : MonoBehaviour
 
     //Player Jump Variables
     [Header("Jumping")]
+    public float JumpSpeed=100;
     public float Gravity;
-
+    public float FallAcceleration;
+    [Range(0.0f, 0.99f)]
+    public float JumpMultiplierRate, JumpCancelRate;
+    private bool _isJumping,_isFalling;
+    private float fallSpeed;
+    private float jumpMultiplyer;
+    private float currentJumpMultiplierRate;
 
     private void Awake()
     {
@@ -80,7 +88,7 @@ public class PlayerMovement : MonoBehaviour
         Debug.DrawRay(transform.position, Vector2.up * GroundCheckDistance, Color.red);
 
         rotationhit = Physics2D.Raycast(transform.position, -transform.up, GroundCheckDistance, GroundLayer);
-        Debug.DrawRay(transform.position, Vector2.up * GroundCheckDistance, Color.blue);
+        Debug.DrawRay(transform.position, -Vector2.up * GroundCheckDistance, Color.blue);
 
         GroundCheck[0] = hitdown;
         GroundCheck[1] = hitright;
@@ -93,19 +101,24 @@ public class PlayerMovement : MonoBehaviour
     private void FixedUpdate()
     {
         //Rotates Player if the player is grounded
-        if (GroundCheck[index].collider != null)
+        if (rotationhit.collider != null)
         {
             RotatePlayer();
+            _isGrounded = true;
+            jumpMultiplyer  = 1f;
             //Adds force to let player stick on walls
-            //rb2D.AddForce(-transform.up * Gravity * Time.deltaTime);
+            groundVar = 1;
+            fallSpeed = 1;
         }
         else
         {
             _isGrounded = false;
+            groundVar = 0;
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.01f);
-            
+            rb2D.AddForce(-Vector2.up * Gravity * Time.deltaTime*fallSpeed);
+            fallSpeed += FallAcceleration;
         }
         
 
@@ -114,7 +127,7 @@ public class PlayerMovement : MonoBehaviour
         {
             slopeRotationAngle -= 360;
         }
-        //rb2D.AddForce(-Vector2.up * Gravity * Time.deltaTime);
+        
 
         //Gets the movement action value
         moveAction = playerInput.actions["Move"];
@@ -150,14 +163,27 @@ public class PlayerMovement : MonoBehaviour
         Debug.Log(Mathf.Cos(groundAngle));
         //Sets velocity
         _currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
-        rb2D.velocity = (_currentSpeed * transform.right) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle))) + (transform.up * -SlopeStickiness);
+        rb2D.velocity = (_currentSpeed * transform.right) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle))) + (transform.up * -SlopeStickiness*groundVar);
+
+        if (_isJumping)
+        {
+            Vector2 tUp = transform.up;
+            rb2D.velocity += tUp* JumpSpeed * jumpMultiplyer;
+
+            jumpMultiplyer *= currentJumpMultiplierRate;
+
+            if (jumpMultiplyer <= 0.01f)
+            {
+                _isJumping = false;
+                _isFalling = true;
+            }
+        }
     }
 
     //rotates player based on slope
     private void RotatePlayer()
     {
-        _isGrounded = true;
-        //_jumpMultiplyer = _airMultiplier = 1f;
+        
 
         //Debug.Log("Hit collider " + GroundCheck[index].collider + ", at " + GroundCheck[index].point + ", normal " + GroundCheck[index].normal);
         Debug.DrawRay(GroundCheck[index].point, GroundCheck[index].normal * 2f, Color.green);
@@ -222,5 +248,31 @@ public class PlayerMovement : MonoBehaviour
             }
 
         }
+    }
+
+    //Sets mode to Jumping when Jump button is pressed
+    private void JumpVoid()
+    {
+        _isJumping = true;
+        jumpMultiplyer = 1;
+        currentJumpMultiplierRate = JumpMultiplierRate;
+    }
+
+    //Reduces Jump Height when Jump Button is let go
+    private void JumpCancel()
+    {
+        currentJumpMultiplierRate = JumpCancelRate;
+    }
+
+    private void OnEnable()
+    {
+        jumpAction.started += context => JumpVoid();
+        jumpAction.canceled += context => JumpCancel();
+    }
+
+    private void OnDisable()
+    {
+        jumpAction.started -= context => JumpVoid();
+        jumpAction.canceled -= context => JumpCancel();
     }
 }
