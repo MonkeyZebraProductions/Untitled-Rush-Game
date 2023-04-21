@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -39,19 +40,32 @@ public class PlayerMovement : MonoBehaviour
     public float BaseMovementSpeed;
     public float CappedMovementSpeed;
     public float Acceleration;
-    private float _currentSpeed;
+    private float currentSpeed;
+    private float currentAcceleration;
 
     //Player Jump Variables
     [Header("Jumping")]
     public float JumpSpeed=100;
     public float Gravity;
     public float FallAcceleration;
+    public float AirAcceleration;
+    public int MaxJumps;
+    public float JumpGracePeriod;
     [Range(0.0f, 0.99f)]
-    public float JumpMultiplierRate, JumpCancelRate;
+    public float JumpMultiplierRate, JumpCancelRate,AirFriction;
     private bool _isJumping,_isFalling;
     private float fallSpeed;
     private float jumpMultiplyer;
     private float currentJumpMultiplierRate;
+    private float currentAirFriction;
+    private float? lastGroundTime;
+    private float? jumpButtonPressed;
+
+    private int jumps;
+
+    //Debug Variables
+    public bool DebugUI;
+    public TextMeshProUGUI CurrentSpeedText;
 
     private void Awake()
     {
@@ -65,9 +79,10 @@ public class PlayerMovement : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        _currentSpeed = 0;
+        currentSpeed = 0;
         GroundCheck = new RaycastHit2D[4];
         sideOffset = (capCollider2D.size.y - capCollider2D.size.x)/2;
+        jumps = MaxJumps;
     }
 
     // Update is called once per frame
@@ -100,25 +115,9 @@ public class PlayerMovement : MonoBehaviour
    
     private void FixedUpdate()
     {
-        //Rotates Player if the player is grounded
-        if (rotationhit.collider != null)
+        if(DebugUI)
         {
-            RotatePlayer();
-            _isGrounded = true;
-            jumpMultiplyer  = 1f;
-            //Adds force to let player stick on walls
-            groundVar = 1;
-            fallSpeed = 1;
-        }
-        else
-        {
-            _isGrounded = false;
-            groundVar = 0;
-            //StartCoroutine(CorrectRotation());
-            groundAngle = 0;
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.01f);
-            rb2D.AddForce(-Vector2.up * Gravity * Time.deltaTime*fallSpeed);
-            fallSpeed += FallAcceleration;
+            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity;
         }
         
 
@@ -137,33 +136,76 @@ public class PlayerMovement : MonoBehaviour
         if (moveInput.x > 0.01)
         {
             //Accelerates player if slower than base speed
-            if (_currentSpeed < BaseMovementSpeed)
+            if (currentSpeed < BaseMovementSpeed)
             {
-                _currentSpeed += Acceleration;
+                currentSpeed += currentAcceleration;
             }
         }
         else if (moveInput.x < -0.01)
         {
             //Accelerates player if slower than base speed in the inverse direction
-            if (_currentSpeed > -BaseMovementSpeed)
+            if (currentSpeed > -BaseMovementSpeed)
             {
-                _currentSpeed -= Acceleration;
+                currentSpeed -= currentAcceleration;
             }
         }
         else
         {
             //Slowly moves player speed to 0 if movement input is 0
 
-            if (_currentSpeed > 0 || _currentSpeed < 0)
+            if (currentSpeed > 0 || currentSpeed < 0)
             {
-                _currentSpeed = Mathf.MoveTowards(_currentSpeed, 0.0f, Acceleration);
+                currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration/2);
             }
         }
 
-        Debug.Log(Mathf.Cos(groundAngle));
+
         //Sets velocity
-        _currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
-        rb2D.velocity = (_currentSpeed * transform.right) + (Vector3.up * -Mathf.Sin(Mathf.Abs(groundAngle))) + (transform.up * -SlopeStickiness*groundVar);
+        currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
+        //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
+        //Rotates Player if the player is grounded
+        if (rotationhit.collider != null)
+        {
+            currentAcceleration = Acceleration;
+            RotatePlayer();
+            _isGrounded = true;
+            _isFalling = false;
+            lastGroundTime = Time.time;
+            //jumpMultiplyer = 1f;
+            //Adds force to let player stick on walls
+            jumps = MaxJumps;
+            groundVar = 1;
+            fallSpeed = 0;
+            rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f)+ (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
+        }
+        else
+        {
+            currentAcceleration = AirAcceleration;
+            _isGrounded = false;
+            groundVar = 0;
+            //StartCoroutine(CorrectRotation());
+            groundAngle = 0;
+            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
+            rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
+        }
+
+        if(Time.time - lastGroundTime >= JumpGracePeriod)
+        {
+            jumps = 0;
+            _isFalling = true;
+        }
+
+        if (Time.time - jumpButtonPressed <= JumpGracePeriod && jumps == MaxJumps)
+        {
+            _isFalling = false;
+            _isJumping = true;
+            jumps = 0;
+            jumpMultiplyer = 1;
+            currentJumpMultiplierRate = JumpMultiplierRate;
+            jumpButtonPressed = null;
+            lastGroundTime = null;
+        }
+
 
         if (_isJumping)
         {
@@ -177,6 +219,13 @@ public class PlayerMovement : MonoBehaviour
                 _isJumping = false;
                 _isFalling = true;
             }
+        }
+
+        //increases gravity when falling
+        if(_isFalling)
+        {
+            fallSpeed += FallAcceleration;
+            rb2D.velocity -= Vector2.up * Gravity * fallSpeed * Time.deltaTime;
         }
     }
 
@@ -210,7 +259,6 @@ public class PlayerMovement : MonoBehaviour
         {
             if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - slopeRotationAngle) < SlopeLimit)
             {
-                Debug.Log("Hi");
                 index = 1;
                 groundAngle = transform.rotation.z;
             }
@@ -230,7 +278,6 @@ public class PlayerMovement : MonoBehaviour
 
             if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitup.normal.x, hitup.normal.y) - slopeRotationAngle) < SlopeLimit)
             {
-                Debug.Log("Hi");
                 index = 2;
                 groundAngle = transform.rotation.z;
             }
@@ -242,7 +289,6 @@ public class PlayerMovement : MonoBehaviour
 
             if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitleft.normal.x, hitleft.normal.y) - slopeRotationAngle) < SlopeLimit)
             {
-                Debug.Log("Hi");
                 index = 3;
                 groundAngle = transform.rotation.z;
             }
@@ -253,15 +299,24 @@ public class PlayerMovement : MonoBehaviour
     //Sets mode to Jumping when Jump button is pressed
     private void JumpVoid()
     {
-        _isJumping = true;
-        jumpMultiplyer = 1;
-        currentJumpMultiplierRate = JumpMultiplierRate;
+        jumpButtonPressed = Time.time;
+        Debug.Log("Pong");
+        currentAirFriction = AirFriction;
+        //if(jumps==MaxJumps)
+        //{
+        //    Debug.Log("Ping");
+        //    _isJumping = true;
+        //    jumpMultiplyer = 1;
+        //    currentJumpMultiplierRate = JumpMultiplierRate;
+        //}
+
     }
 
     //Reduces Jump Height when Jump Button is let go
     private void JumpCancel()
     {
         currentJumpMultiplierRate = JumpCancelRate;
+        currentAirFriction = 1;
     }
 
     private void OnEnable()
