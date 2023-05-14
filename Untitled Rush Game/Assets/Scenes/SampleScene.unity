@@ -779,7 +779,7 @@ MonoBehaviour:
   GroundLayer:
     serializedVersion: 2
     m_Bits: 64
-  BaseMovementSpeed: 20
+  BaseMovementSpeed: 25
   CappedMovementSpeed: 10
   Acceleration: 0.35
   JumpSpeed: 50
@@ -791,6 +791,9 @@ MonoBehaviour:
   JumpMultiplierRate: 0.9
   JumpCancelRate: 0.35
   AirFriction: 0.734
+  SlideSpeed: 10
+  SlideMomentumMultiplier: 1.2
+  StompSpeed: 3000
   DebugUI: 1
   CurrentSpeedText: {fileID: 905571177}
 --- !u!1 &738653821

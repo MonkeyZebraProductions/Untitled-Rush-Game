@@ -11,6 +11,7 @@ public class PlayerMovement : MonoBehaviour
     private PlayerInput playerInput;
     private InputAction moveAction;
     private InputAction jumpAction;
+    private InputAction slideAction;
 
     //Component Variables
     private Rigidbody2D rb2D;
@@ -53,6 +54,7 @@ public class PlayerMovement : MonoBehaviour
     public float JumpGracePeriod;
     [Range(0.0f, 0.99f)]
     public float JumpMultiplierRate, JumpCancelRate,AirFriction;
+    
     private bool _isJumping,_isFalling;
     private float fallSpeed;
     private float jumpMultiplyer;
@@ -60,8 +62,15 @@ public class PlayerMovement : MonoBehaviour
     private float currentAirFriction;
     private float? lastGroundTime;
     private float? jumpButtonPressed;
-
     private int jumps;
+
+    [Header("Sliding")]
+    public float SlideSpeed;
+    public float SlideMomentumMultiplier;
+    public float StompSpeed;
+    private bool _isSliding;
+    private bool _isStomping;
+    private float currentMomentumMultiplier=1;
 
     //Debug Variables
     public bool DebugUI;
@@ -72,6 +81,7 @@ public class PlayerMovement : MonoBehaviour
         //Asigns variables at start of Runtime
         playerInput = GetComponent<PlayerInput>();
         jumpAction = playerInput.actions["Jump"];
+        slideAction = playerInput.actions["slide"];
 
         rb2D = GetComponent<Rigidbody2D>();
         capCollider2D = GetComponent<CapsuleCollider2D>();
@@ -112,21 +122,21 @@ public class PlayerMovement : MonoBehaviour
         SlopeCheck();
     }
 
-   
+
     private void FixedUpdate()
     {
-        if(DebugUI)
+        if (DebugUI)
         {
             CurrentSpeedText.text = "Current Speed: " + rb2D.velocity;
         }
-        
+
 
         slopeRotationAngle = transform.rotation.eulerAngles.z;
-        if(slopeRotationAngle>180)
+        if (slopeRotationAngle > 180)
         {
             slopeRotationAngle -= 360;
         }
-        
+
 
         //Gets the movement action value
         moveAction = playerInput.actions["Move"];
@@ -135,16 +145,27 @@ public class PlayerMovement : MonoBehaviour
         //Checks movement direction
         if (moveInput.x > 0.01)
         {
-            //Accelerates player if slower than base speed
-            if (currentSpeed < BaseMovementSpeed)
+            //Sets player speed to slide speed if sliding
+            if (_isSliding && currentSpeed < SlideSpeed)
+            {
+                currentSpeed = SlideSpeed;
+            }
+
+            //Accelerates player if slower than base speed and player is not sliding
+            if (currentSpeed < BaseMovementSpeed && !_isSliding)
             {
                 currentSpeed += currentAcceleration;
             }
         }
         else if (moveInput.x < -0.01)
         {
+            //Sets player speed to slide speed if sliding
+            if (_isSliding && currentSpeed > -SlideSpeed)
+            {
+                currentSpeed = -SlideSpeed;
+            }
             //Accelerates player if slower than base speed in the inverse direction
-            if (currentSpeed > -BaseMovementSpeed)
+            if (currentSpeed > -BaseMovementSpeed && !_isSliding)
             {
                 currentSpeed -= currentAcceleration;
             }
@@ -155,17 +176,21 @@ public class PlayerMovement : MonoBehaviour
 
             if (currentSpeed > 0 || currentSpeed < 0)
             {
-                currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration/2);
+                currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration / 2);
             }
         }
 
 
         //Sets velocity
-        currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier;
+        currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
         //Rotates Player if the player is grounded
         if (rotationhit.collider != null)
         {
+            if(_isStomping)
+            {
+                StompLand();
+            }
             currentAcceleration = Acceleration;
             RotatePlayer();
             _isGrounded = true;
@@ -176,11 +201,31 @@ public class PlayerMovement : MonoBehaviour
             jumps = MaxJumps;
             groundVar = 1;
             fallSpeed = 0;
-            rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f)+ (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
+            if (slideAction.IsPressed())
+            {
+                _isSliding = true;
+                currentMomentumMultiplier = SlideMomentumMultiplier;
+                Debug.Log("Sliding");
+            }
+            else
+            {
+                _isSliding = false;
+                currentMomentumMultiplier = 1;
+            }
+            rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
         }
         else
         {
-            currentAcceleration = AirAcceleration;
+            if (!_isStomping)
+            {
+                currentAcceleration = AirAcceleration;
+            }
+
+            if (slideAction.IsPressed())
+            {
+                _isStomping = true;
+                ResetMomentum();
+            }
             _isGrounded = false;
             groundVar = 0;
             //StartCoroutine(CorrectRotation());
@@ -189,7 +234,7 @@ public class PlayerMovement : MonoBehaviour
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
 
-        if(Time.time - lastGroundTime >= JumpGracePeriod)
+        if (Time.time - lastGroundTime >= JumpGracePeriod)
         {
             jumps = 0;
             _isFalling = true;
@@ -206,11 +251,11 @@ public class PlayerMovement : MonoBehaviour
             lastGroundTime = null;
         }
 
-
+        //Jump Code
         if (_isJumping)
         {
             Vector2 tUp = transform.up;
-            rb2D.velocity += tUp* JumpSpeed * jumpMultiplyer;
+            rb2D.velocity += tUp * JumpSpeed * jumpMultiplyer;
 
             jumpMultiplyer *= currentJumpMultiplierRate;
 
@@ -222,10 +267,17 @@ public class PlayerMovement : MonoBehaviour
         }
 
         //increases gravity when falling
-        if(_isFalling)
+        if (_isFalling)
         {
             fallSpeed += FallAcceleration;
             rb2D.velocity -= Vector2.up * Gravity * fallSpeed * Time.deltaTime;
+        }
+
+        //Stomp Code
+
+        if(_isStomping)
+        {
+            Stomp();
         }
     }
 
@@ -296,6 +348,12 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    public void ResetMomentum()
+    {
+        rb2D.velocity = Vector2.zero;
+        currentSpeed = 0;
+    }
+
     //Sets mode to Jumping when Jump button is pressed
     private void JumpVoid()
     {
@@ -317,6 +375,32 @@ public class PlayerMovement : MonoBehaviour
     {
         currentJumpMultiplierRate = JumpCancelRate;
         currentAirFriction = 1;
+    }
+
+    private void Slide()
+    {
+        //code to change hitbox on this line, normalHitbox.enabled=!_isSliding
+        //code to change hitbox on this line, slidingHitbox.enabled=_isSliding
+        //code to change hurtbox on this line, slidingHurtbox.enabled= _isSliding
+    }
+
+    //Moves Player down at a rapid pace with a hitbox
+    private void Stomp()
+    {
+        //code to change hurtbox on this line, stompingHitbox.enabled= true
+        currentAcceleration = 0;
+        _isJumping = false;
+        _isFalling = false;
+        rb2D.velocity -= Vector2.up * StompSpeed * Time.deltaTime;
+    }
+
+    private void StompLand()
+    {
+        //code to change hurtbox on this line, stompingHitbox.enabled= falce
+        //code to change hurtbox on this line, LandingHitbox.enabled= true
+        //Wait for frames
+        //code to change hurtbox on this line, LandingHitbox.enabled= falce
+        _isStomping = false;
     }
 
     private void OnEnable()
