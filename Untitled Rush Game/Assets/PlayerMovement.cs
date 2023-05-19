@@ -12,6 +12,7 @@ public class PlayerMovement : MonoBehaviour
     private InputAction moveAction;
     private InputAction jumpAction;
     private InputAction slideAction;
+    private InputAction boostAction;
 
     //Component Variables
     private Rigidbody2D rb2D;
@@ -41,8 +42,10 @@ public class PlayerMovement : MonoBehaviour
     public float BaseMovementSpeed;
     public float CappedMovementSpeed;
     public float Acceleration;
+
     private float currentSpeed;
     private float currentAcceleration;
+    public bool IsFacingLeft;
 
     //Player Jump Variables
     [Header("Jumping")]
@@ -68,9 +71,20 @@ public class PlayerMovement : MonoBehaviour
     public float SlideSpeed;
     public float SlideMomentumMultiplier;
     public float StompSpeed;
+
     private bool _isSliding;
     private bool _isStomping;
     private float currentMomentumMultiplier=1;
+
+    [Header("Boosting")]
+    public float BoostSpeed;
+    public float AirBoostForce;
+    public Vector2 AirBoostDirection;
+    public int AirBoostMax;
+
+    private int airBoostNumber;
+    private int boostDir;
+    private bool _isBoosting;
 
     //Debug Variables
     public bool DebugUI;
@@ -82,7 +96,7 @@ public class PlayerMovement : MonoBehaviour
         playerInput = GetComponent<PlayerInput>();
         jumpAction = playerInput.actions["Jump"];
         slideAction = playerInput.actions["slide"];
-
+        boostAction = playerInput.actions["Boost"];
         rb2D = GetComponent<Rigidbody2D>();
         capCollider2D = GetComponent<CapsuleCollider2D>();
     }
@@ -93,6 +107,8 @@ public class PlayerMovement : MonoBehaviour
         GroundCheck = new RaycastHit2D[4];
         sideOffset = (capCollider2D.size.y - capCollider2D.size.x)/2;
         jumps = MaxJumps;
+        airBoostNumber = AirBoostMax;
+        boostDir = 1;
     }
 
     // Update is called once per frame
@@ -145,7 +161,9 @@ public class PlayerMovement : MonoBehaviour
         //Checks movement direction
         if (moveInput.x > 0.01)
         {
-            //Sets player speed to slide speed if sliding
+            IsFacingLeft = false;
+            boostDir = 1;
+            //Sets player speed to slide speed if sliding and moving slowly
             if (_isSliding && currentSpeed < SlideSpeed)
             {
                 currentSpeed = SlideSpeed;
@@ -159,6 +177,8 @@ public class PlayerMovement : MonoBehaviour
         }
         else if (moveInput.x < -0.01)
         {
+            IsFacingLeft = true;
+            boostDir = -1;
             //Sets player speed to slide speed if sliding
             if (_isSliding && currentSpeed > -SlideSpeed)
             {
@@ -184,7 +204,7 @@ public class PlayerMovement : MonoBehaviour
         //Sets velocity
         currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
-        //Rotates Player if the player is grounded
+        //Checks if Player is grounded
         if (rotationhit.collider != null)
         {
             if(_isStomping)
@@ -192,6 +212,7 @@ public class PlayerMovement : MonoBehaviour
                 StompLand();
             }
             currentAcceleration = Acceleration;
+            //Rotates Player if the player is grounded
             RotatePlayer();
             _isGrounded = true;
             _isFalling = false;
@@ -201,6 +222,7 @@ public class PlayerMovement : MonoBehaviour
             jumps = MaxJumps;
             groundVar = 1;
             fallSpeed = 0;
+            airBoostNumber = AirBoostMax;
             if (slideAction.IsPressed())
             {
                 _isSliding = true;
@@ -221,6 +243,11 @@ public class PlayerMovement : MonoBehaviour
                 currentAcceleration = AirAcceleration;
             }
 
+            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax)
+            {
+                Debug.Log("Boost");
+                AirBoost();
+            }
             if (slideAction.IsPressed())
             {
                 _isStomping = true;
@@ -401,6 +428,14 @@ public class PlayerMovement : MonoBehaviour
         //Wait for frames
         //code to change hurtbox on this line, LandingHitbox.enabled= falce
         _isStomping = false;
+    }
+
+    private void AirBoost()
+    {
+        ResetMomentum();
+        rb2D.AddForce(new Vector2(AirBoostDirection.x*boostDir,AirBoostDirection.y) * AirBoostForce);
+        currentSpeed = BoostSpeed*boostDir;
+        airBoostNumber -= 1;
     }
 
     private void OnEnable()

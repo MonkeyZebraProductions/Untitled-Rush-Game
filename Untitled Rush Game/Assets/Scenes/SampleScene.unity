@@ -780,8 +780,9 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   BaseMovementSpeed: 25
-  CappedMovementSpeed: 10
-  Acceleration: 0.35
+  CappedMovementSpeed: 100
+  Acceleration: 0.5
+  IsFacingLeft: 0
   JumpSpeed: 50
   Gravity: 10
   FallAcceleration: 10
@@ -794,6 +795,10 @@ MonoBehaviour:
   SlideSpeed: 10
   SlideMomentumMultiplier: 1.2
   StompSpeed: 3000
+  BoostSpeed: 50
+  AirBoostForce: 5000
+  AirBoostDirection: {x: 2, y: 1}
+  AirBoostMax: 1
   DebugUI: 1
   CurrentSpeedText: {fileID: 905571177}
 --- !u!1 &738653821
