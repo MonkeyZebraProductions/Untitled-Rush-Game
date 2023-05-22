@@ -44,6 +44,7 @@ public class PlayerMovement : MonoBehaviour
     public float Acceleration;
 
     private float currentSpeed;
+    private float preBoostSpeed;
     private float currentAcceleration;
     public bool IsFacingLeft;
 
@@ -59,6 +60,7 @@ public class PlayerMovement : MonoBehaviour
     public float JumpMultiplierRate, JumpCancelRate,AirFriction;
     
     private bool _isJumping,_isFalling;
+    //private bool _jumpPressed;
     private float fallSpeed;
     private float jumpMultiplyer;
     private float currentJumpMultiplierRate;
@@ -67,6 +69,14 @@ public class PlayerMovement : MonoBehaviour
     private float? jumpButtonPressed;
     private int jumps;
 
+    [Header("HomingAttack")]
+    public Vector2 HomingDashDirection;
+    public float HomingAttackSpeed;
+
+    private bool _canHomingAttack,_isHoming,_homingEnded;
+    private Vector2 currentHomingDirection;
+
+    //Player Slide Variables
     [Header("Sliding")]
     public float SlideSpeed;
     public float SlideMomentumMultiplier;
@@ -76,8 +86,11 @@ public class PlayerMovement : MonoBehaviour
     private bool _isStomping;
     private float currentMomentumMultiplier=1;
 
+    //Player Boost Variables
     [Header("Boosting")]
     public float BoostSpeed;
+    public float Mach2BoostSpeed;
+    public float Mach3BoostSpeed;
     public float AirBoostForce;
     public Vector2 AirBoostDirection;
     public int AirBoostMax;
@@ -161,7 +174,6 @@ public class PlayerMovement : MonoBehaviour
         //Checks movement direction
         if (moveInput.x > 0.01)
         {
-            IsFacingLeft = false;
             boostDir = 1;
             //Sets player speed to slide speed if sliding and moving slowly
             if (_isSliding && currentSpeed < SlideSpeed)
@@ -176,8 +188,7 @@ public class PlayerMovement : MonoBehaviour
             }
         }
         else if (moveInput.x < -0.01)
-        {
-            IsFacingLeft = true;
+        { 
             boostDir = -1;
             //Sets player speed to slide speed if sliding
             if (_isSliding && currentSpeed > -SlideSpeed)
@@ -200,9 +211,58 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-
+        if(currentSpeed>0)
+        {
+            IsFacingLeft = false;
+        }
+        else if (currentSpeed<0)
+        {
+            IsFacingLeft = true;
+        }
         //Sets velocity
-        currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
+        if(_isBoosting)
+        {
+            if(!IsFacingLeft)
+            {
+                // Speed of the boost depends of the Player speed before the boost button is pressed
+                if (preBoostSpeed > Mach2BoostSpeed * 0.9f)
+                {
+                    currentSpeed = Mach3BoostSpeed;
+                }
+                else if (preBoostSpeed > BoostSpeed * 0.9f)
+                {
+                    currentSpeed = Mach2BoostSpeed;
+                }
+                else
+                {
+                    currentSpeed = BoostSpeed;
+                }
+            }
+            else
+            {
+                if (preBoostSpeed < -Mach2BoostSpeed * 0.9f)
+                {
+                    currentSpeed = -Mach3BoostSpeed;
+                }
+                else if (preBoostSpeed < -BoostSpeed * 0.9f)
+                {
+                    currentSpeed = -Mach2BoostSpeed;
+                }
+                else
+                {
+                    currentSpeed = -BoostSpeed;
+                }
+            }
+            
+        }
+        else //Use Slope Physics if not Boosting
+        {
+            currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
+            preBoostSpeed = currentSpeed;
+        }
+            
+        
+        
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
         //Checks if Player is grounded
         if (rotationhit.collider != null)
@@ -222,6 +282,7 @@ public class PlayerMovement : MonoBehaviour
             jumps = MaxJumps;
             groundVar = 1;
             fallSpeed = 0;
+            _isHoming = false;
             airBoostNumber = AirBoostMax;
             if (slideAction.IsPressed())
             {
@@ -234,6 +295,11 @@ public class PlayerMovement : MonoBehaviour
                 _isSliding = false;
                 currentMomentumMultiplier = 1;
             }
+
+            if(boostAction.IsPressed())
+            {
+                _isBoosting = true;
+            }
             rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
         }
         else
@@ -243,7 +309,7 @@ public class PlayerMovement : MonoBehaviour
                 currentAcceleration = AirAcceleration;
             }
 
-            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax)
+            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax && _isBoosting==false)
             {
                 Debug.Log("Boost");
                 AirBoost();
@@ -258,6 +324,13 @@ public class PlayerMovement : MonoBehaviour
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
+            if(jumpAction.IsPressed() && _canHomingAttack)
+            {
+                _isJumping = false;
+                StartCoroutine(HomingDash());
+                
+                //HomingDash();
+            }
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
 
@@ -269,6 +342,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (Time.time - jumpButtonPressed <= JumpGracePeriod && jumps == MaxJumps)
         {
+            Debug.Log("Arrg");
             _isFalling = false;
             _isJumping = true;
             jumps = 0;
@@ -278,6 +352,10 @@ public class PlayerMovement : MonoBehaviour
             lastGroundTime = null;
         }
 
+        if(_isHoming)
+        {
+            rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8))) * Time.deltaTime);
+        }
         //Jump Code
         if (_isJumping)
         {
@@ -292,7 +370,6 @@ public class PlayerMovement : MonoBehaviour
                 _isFalling = true;
             }
         }
-
         //increases gravity when falling
         if (_isFalling)
         {
@@ -384,9 +461,19 @@ public class PlayerMovement : MonoBehaviour
     //Sets mode to Jumping when Jump button is pressed
     private void JumpVoid()
     {
+       
         jumpButtonPressed = Time.time;
-        Debug.Log("Pong");
+        
+        
         currentAirFriction = AirFriction;
+        if (jumps<MaxJumps)
+        {
+            _canHomingAttack = true;
+        }
+        else
+        {
+            _canHomingAttack = false;
+        }
         //if(jumps==MaxJumps)
         //{
         //    Debug.Log("Ping");
@@ -400,10 +487,26 @@ public class PlayerMovement : MonoBehaviour
     //Reduces Jump Height when Jump Button is let go
     private void JumpCancel()
     {
+        _canHomingAttack=true;
+      
         currentJumpMultiplierRate = JumpCancelRate;
         currentAirFriction = 1;
+
+        
     }
 
+    private IEnumerator HomingDash()
+    {
+        ResetMomentum();
+        currentHomingDirection = new Vector2 (HomingDashDirection.x*boostDir,HomingDashDirection.y);
+        jumpButtonPressed = null;
+        _isJumping = false;
+        _isFalling = true;
+        _isHoming = true;
+        currentSpeed = BaseMovementSpeed*boostDir;
+        yield return new WaitForSeconds(2);
+        _isHoming = false;
+    }
     private void Slide()
     {
         //code to change hitbox on this line, normalHitbox.enabled=!_isSliding
@@ -430,10 +533,27 @@ public class PlayerMovement : MonoBehaviour
         _isStomping = false;
     }
 
+    private void BoostCancel()
+    {
+        if(_isBoosting)
+        {
+            if(currentSpeed>BaseMovementSpeed && !IsFacingLeft)
+            {
+                currentSpeed = BaseMovementSpeed;
+            }
+            else if(currentSpeed < -BaseMovementSpeed && IsFacingLeft)
+            {
+                currentSpeed = -BaseMovementSpeed;
+            }
+            
+            _isBoosting = false;
+        }
+        
+    }
     private void AirBoost()
     {
         ResetMomentum();
-        rb2D.AddForce(new Vector2(AirBoostDirection.x*boostDir,AirBoostDirection.y) * AirBoostForce);
+        rb2D.AddForce(new Vector2(AirBoostDirection.x*boostDir,AirBoostDirection.y).normalized * AirBoostForce);
         currentSpeed = BoostSpeed*boostDir;
         airBoostNumber -= 1;
     }
@@ -442,11 +562,13 @@ public class PlayerMovement : MonoBehaviour
     {
         jumpAction.started += context => JumpVoid();
         jumpAction.canceled += context => JumpCancel();
+        boostAction.canceled += context => BoostCancel();
     }
 
     private void OnDisable()
     {
         jumpAction.started -= context => JumpVoid();
         jumpAction.canceled -= context => JumpCancel();
+        boostAction.canceled -= context => BoostCancel();
     }
 }
