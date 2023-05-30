@@ -727,6 +727,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 31718370}
+  - {fileID: 814087050}
   m_Father: {fileID: 0}
   m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -782,6 +783,7 @@ MonoBehaviour:
   BaseMovementSpeed: 25
   CappedMovementSpeed: 100
   Acceleration: 0.5
+  BreakPower: 2
   IsFacingLeft: 0
   JumpSpeed: 50
   Gravity: 10
@@ -792,7 +794,7 @@ MonoBehaviour:
   JumpMultiplierRate: 0.9
   JumpCancelRate: 0.35
   AirFriction: 0.734
-  HomingDashDirection: {x: 1, y: 0}
+  HomingDashDirection: {x: 2, y: 1}
   HomingAttackSpeed: 20000
   SlideSpeed: 10
   SlideMomentumMultiplier: 1.2
@@ -801,7 +803,7 @@ MonoBehaviour:
   Mach2BoostSpeed: 75
   Mach3BoostSpeed: 100
   AirBoostForce: 5000
-  AirBoostDirection: {x: 2, y: 1}
+  AirBoostDirection: {x: 5, y: 1}
   AirBoostMax: 1
   DebugUI: 1
   CurrentSpeedText: {fileID: 905571177}
@@ -1128,6 +1130,70 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 14
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: -40}
+--- !u!1 &814087049
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 814087050}
+  - component: {fileID: 814087051}
+  m_Layer: 0
+  m_Name: Homing Cone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &814087050
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 814087049}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1.221, y: 1.221, z: 1.221}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 642931490}
+  m_RootOrder: -1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!60 &814087051
+PolygonCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 814087049}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Points:
+    m_Paths:
+    - - {x: 13.256974, y: 2.0916882}
+      - {x: 0.57250404, y: 3.5190086}
+      - {x: 0.30844778, y: 0.19451693}
+      - {x: 0.44271904, y: -0.86626804}
+      - {x: 0.58778536, y: -2.0112722}
+      - {x: 13.227831, y: -0.10531491}
+  m_UseDelaunayMesh: 0
 --- !u!1 &845862333
 GameObject:
   m_ObjectHideFlags: 0

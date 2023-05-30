@@ -13,6 +13,7 @@ public class PlayerMovement : MonoBehaviour
     private InputAction jumpAction;
     private InputAction slideAction;
     private InputAction boostAction;
+    private InputAction breakAction;
 
     //Component Variables
     private Rigidbody2D rb2D;
@@ -42,11 +43,13 @@ public class PlayerMovement : MonoBehaviour
     public float BaseMovementSpeed;
     public float CappedMovementSpeed;
     public float Acceleration;
+    public float BreakPower;
 
     private float currentSpeed;
     private float preBoostSpeed;
     private float currentAcceleration;
     public bool IsFacingLeft;
+    private bool _isBreaking;
 
     //Player Jump Variables
     [Header("Jumping")]
@@ -110,6 +113,7 @@ public class PlayerMovement : MonoBehaviour
         jumpAction = playerInput.actions["Jump"];
         slideAction = playerInput.actions["slide"];
         boostAction = playerInput.actions["Boost"];
+        breakAction = playerInput.actions["Break"];
         rb2D = GetComponent<Rigidbody2D>();
         capCollider2D = GetComponent<CapsuleCollider2D>();
     }
@@ -171,44 +175,51 @@ public class PlayerMovement : MonoBehaviour
         moveAction = playerInput.actions["Move"];
         Vector2 moveInput = moveAction.ReadValue<Vector2>();
 
-        //Checks movement direction
-        if (moveInput.x > 0.01)
+        if (!_isBreaking)
         {
-            boostDir = 1;
-            //Sets player speed to slide speed if sliding and moving slowly
-            if (_isSliding && currentSpeed < SlideSpeed)
+            //Checks movement direction
+            if (moveInput.x > 0.01)
             {
-                currentSpeed = SlideSpeed;
-            }
+                boostDir = 1;
+                ////Sets player speed to slide speed if sliding and moving slowly
+                //if (_isSliding && currentSpeed < SlideSpeed)
+                //{
+                //    currentSpeed = SlideSpeed;
+                //}
 
-            //Accelerates player if slower than base speed and player is not sliding
-            if (currentSpeed < BaseMovementSpeed && !_isSliding)
-            {
-                currentSpeed += currentAcceleration;
+                //Accelerates player if slower than base speed
+                if (currentSpeed < BaseMovementSpeed)
+                {
+                    currentSpeed += currentAcceleration;
+                }
             }
-        }
-        else if (moveInput.x < -0.01)
-        { 
-            boostDir = -1;
-            //Sets player speed to slide speed if sliding
-            if (_isSliding && currentSpeed > -SlideSpeed)
+            else if (moveInput.x < -0.01)
             {
-                currentSpeed = -SlideSpeed;
+                boostDir = -1;
+                ////Sets player speed to slide speed if sliding
+                //if (_isSliding && currentSpeed > -SlideSpeed)
+                //{
+                //    currentSpeed = -SlideSpeed;
+                //}
+                //Accelerates player if slower than base speed in the inverse direction
+                if (currentSpeed > -BaseMovementSpeed)
+                {
+                    currentSpeed -= currentAcceleration;
+                }
             }
-            //Accelerates player if slower than base speed in the inverse direction
-            if (currentSpeed > -BaseMovementSpeed && !_isSliding)
+            else
             {
-                currentSpeed -= currentAcceleration;
+                //Slowly moves player speed to 0 if movement input is 0 at a slower rate
+
+                if (currentSpeed > 0 || currentSpeed < 0)
+                {
+                    currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration / 2);
+                }
             }
         }
         else
         {
-            //Slowly moves player speed to 0 if movement input is 0
-
-            if (currentSpeed > 0 || currentSpeed < 0)
-            {
-                currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration / 2);
-            }
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, BreakPower);
         }
 
         if(currentSpeed>0)
@@ -295,10 +306,17 @@ public class PlayerMovement : MonoBehaviour
                 _isSliding = false;
                 currentMomentumMultiplier = 1;
             }
-
             if(boostAction.IsPressed())
             {
                 _isBoosting = true;
+            }
+            if(breakAction.IsPressed())
+            {
+                _isBreaking = true;
+            }
+            else
+            {
+                _isBreaking = false;
             }
             rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
         }
@@ -456,6 +474,8 @@ public class PlayerMovement : MonoBehaviour
     {
         rb2D.velocity = Vector2.zero;
         currentSpeed = 0;
+        groundAngle = 0;
+        transform.rotation = Quaternion.identity;
     }
 
     //Sets mode to Jumping when Jump button is pressed
