@@ -20,7 +20,7 @@ public class HomingAttack : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if(collision.gameObject.layer == HomingLayer)
+        if(collision.gameObject.layer == 7)
         {
             targets.Add(collision.gameObject.transform);
         }
@@ -28,7 +28,7 @@ public class HomingAttack : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (collision.gameObject.layer == HomingLayer)
+        if (collision.gameObject.layer == 7)
         {
             targets.Clear();
         }

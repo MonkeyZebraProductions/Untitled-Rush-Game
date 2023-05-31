@@ -78,8 +78,9 @@ public class PlayerMovement : MonoBehaviour
     public bool CanHomingAttack;
 
     private bool _isHoming,_homingEnded;
+    public GameObject HomingLeft, HomingRight;
     private Vector2 currentHomingDirection;
-    private HomingAttack hA;
+    private HomingAttack hALeft,hARight,hACurrent;
 
     //Player Slide Variables
     [Header("Sliding")]
@@ -118,7 +119,8 @@ public class PlayerMovement : MonoBehaviour
         breakAction = playerInput.actions["Break"];
         rb2D = GetComponent<Rigidbody2D>();
         capCollider2D = GetComponent<CapsuleCollider2D>();
-        hA = FindObjectOfType<HomingAttack>();
+        hALeft = HomingLeft.GetComponent<HomingAttack>();
+        hARight = HomingRight.GetComponent<HomingAttack>();
     }
     // Start is called before the first frame update
     void Start()
@@ -177,13 +179,22 @@ public class PlayerMovement : MonoBehaviour
         //Gets the movement action value
         moveAction = playerInput.actions["Move"];
         Vector2 moveInput = moveAction.ReadValue<Vector2>();
-
+        HomingLeft.SetActive(!HomingRight.activeSelf);
+        if(HomingRight.activeSelf)
+        {
+            hACurrent = hARight;
+        }
+        else
+        {
+            hACurrent = hALeft;
+        }
         if (!_isBreaking)
         {
             //Checks movement direction
             if (moveInput.x > 0.01)
             {
                 boostDir = 1;
+                HomingRight.SetActive(true);
                 ////Sets player speed to slide speed if sliding and moving slowly
                 //if (_isSliding && currentSpeed < SlideSpeed)
                 //{
@@ -198,6 +209,7 @@ public class PlayerMovement : MonoBehaviour
             }
             else if (moveInput.x < -0.01)
             {
+                HomingRight.SetActive(false);
                 boostDir = -1;
                 ////Sets player speed to slide speed if sliding
                 //if (_isSliding && currentSpeed > -SlideSpeed)
@@ -347,7 +359,7 @@ public class PlayerMovement : MonoBehaviour
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
             if(jumpAction.IsPressed() && CanHomingAttack)
             { 
-                hA.CheckHoming();
+                hACurrent.CheckHoming();
             }
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
@@ -372,7 +384,7 @@ public class PlayerMovement : MonoBehaviour
 
         if(_isHoming)
         {
-            rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8)))*hA.CurrentHomingMultiplier * Time.deltaTime);
+            rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8)))*hACurrent.CurrentHomingMultiplier * Time.deltaTime);
         }
         //Jump Code
         if (_isJumping)
@@ -531,12 +543,12 @@ public class PlayerMovement : MonoBehaviour
     public void HomingAttack()
     {
         ResetMomentum();
-        currentHomingDirection = hA.CurrentTarget;
+        currentHomingDirection = hACurrent.CurrentTarget;
         jumpButtonPressed = null;
         _isJumping = false;
         _isFalling = true;
         _isHoming = true;
-        currentSpeed = BaseMovementSpeed * hA.Facing;
+        currentSpeed = BaseMovementSpeed * hACurrent.Facing;
     }
 
     private void Slide()

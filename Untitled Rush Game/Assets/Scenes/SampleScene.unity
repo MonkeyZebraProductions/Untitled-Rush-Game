@@ -356,6 +356,7 @@ GameObject:
   m_Component:
   - component: {fileID: 370235145}
   - component: {fileID: 370235146}
+  - component: {fileID: 370235147}
   m_Layer: 0
   m_Name: Homing Cone Left
   m_TagString: Untagged
@@ -409,6 +410,27 @@ PolygonCollider2D:
       - {x: 6.436443, y: -2.322711}
       - {x: 6.427489, y: 2.6949618}
   m_UseDelaunayMesh: 0
+--- !u!114 &370235147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 370235144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c3c9278e4059b94d8a61ffb3d979765, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  HomingLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  targets: []
+  CurrentTarget: {x: 0, y: 0}
+  hasTarget: 0
+  Facing: -1
+  CurrentHomingMultiplier: 1
+  HomingMultiplier: 10
 --- !u!1 &455677263
 GameObject:
   m_ObjectHideFlags: 0
@@ -861,6 +883,8 @@ MonoBehaviour:
   HomingDashDirection: {x: 2, y: 1}
   HomingAttackSpeed: 20000
   CanHomingAttack: 0
+  HomingLeft: {fileID: 370235144}
+  HomingRight: {fileID: 814087049}
   SlideSpeed: 10
   SlideMomentumMultiplier: 1.2
   StompSpeed: 3000
@@ -1273,11 +1297,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   HomingLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
   targets: []
   CurrentTarget: {x: 0, y: 0}
   hasTarget: 0
   Facing: 1
+  CurrentHomingMultiplier: 1
+  HomingMultiplier: 10
 --- !u!1 &845862333
 GameObject:
   m_ObjectHideFlags: 0
@@ -1626,7 +1652,7 @@ GameObject:
   - component: {fileID: 984312361}
   - component: {fileID: 984312360}
   - component: {fileID: 984312359}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Homing Target
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1741,7 +1767,7 @@ GameObject:
   - component: {fileID: 1120535500}
   - component: {fileID: 1120535499}
   - component: {fileID: 1120535498}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Homing Target (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1824,7 +1850,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1120535497}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 45.7, y: 22.2, z: 0}
+  m_LocalPosition: {x: 45.7, y: 28.4, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
