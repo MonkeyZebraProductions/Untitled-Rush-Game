@@ -75,9 +75,11 @@ public class PlayerMovement : MonoBehaviour
     [Header("HomingAttack")]
     public Vector2 HomingDashDirection;
     public float HomingAttackSpeed;
+    public bool CanHomingAttack;
 
-    private bool _canHomingAttack,_isHoming,_homingEnded;
+    private bool _isHoming,_homingEnded;
     private Vector2 currentHomingDirection;
+    private HomingAttack hA;
 
     //Player Slide Variables
     [Header("Sliding")]
@@ -116,6 +118,7 @@ public class PlayerMovement : MonoBehaviour
         breakAction = playerInput.actions["Break"];
         rb2D = GetComponent<Rigidbody2D>();
         capCollider2D = GetComponent<CapsuleCollider2D>();
+        hA = FindObjectOfType<HomingAttack>();
     }
     // Start is called before the first frame update
     void Start()
@@ -342,12 +345,9 @@ public class PlayerMovement : MonoBehaviour
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
-            if(jumpAction.IsPressed() && _canHomingAttack)
-            {
-                _isJumping = false;
-                StartCoroutine(HomingDash());
-                
-                //HomingDash();
+            if(jumpAction.IsPressed() && CanHomingAttack)
+            { 
+                hA.CheckHoming();
             }
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
@@ -372,7 +372,7 @@ public class PlayerMovement : MonoBehaviour
 
         if(_isHoming)
         {
-            rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8))) * Time.deltaTime);
+            rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8)))*hA.CurrentHomingMultiplier * Time.deltaTime);
         }
         //Jump Code
         if (_isJumping)
@@ -488,11 +488,11 @@ public class PlayerMovement : MonoBehaviour
         currentAirFriction = AirFriction;
         if (jumps<MaxJumps)
         {
-            _canHomingAttack = true;
+            CanHomingAttack = true;
         }
         else
         {
-            _canHomingAttack = false;
+            CanHomingAttack = false;
         }
         //if(jumps==MaxJumps)
         //{
@@ -507,7 +507,7 @@ public class PlayerMovement : MonoBehaviour
     //Reduces Jump Height when Jump Button is let go
     private void JumpCancel()
     {
-        _canHomingAttack=true;
+        CanHomingAttack=true;
       
         currentJumpMultiplierRate = JumpCancelRate;
         currentAirFriction = 1;
@@ -515,7 +515,7 @@ public class PlayerMovement : MonoBehaviour
         
     }
 
-    private IEnumerator HomingDash()
+    public IEnumerator HomingDash()
     {
         ResetMomentum();
         currentHomingDirection = new Vector2 (HomingDashDirection.x*boostDir,HomingDashDirection.y);
@@ -527,6 +527,18 @@ public class PlayerMovement : MonoBehaviour
         yield return new WaitForSeconds(2);
         _isHoming = false;
     }
+
+    public void HomingAttack()
+    {
+        ResetMomentum();
+        currentHomingDirection = hA.CurrentTarget;
+        jumpButtonPressed = null;
+        _isJumping = false;
+        _isFalling = true;
+        _isHoming = true;
+        currentSpeed = BaseMovementSpeed * hA.Facing;
+    }
+
     private void Slide()
     {
         //code to change hitbox on this line, normalHitbox.enabled=!_isSliding
