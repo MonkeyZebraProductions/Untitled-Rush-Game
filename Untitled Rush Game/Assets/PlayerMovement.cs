@@ -158,6 +158,11 @@ public class PlayerMovement : MonoBehaviour
         GroundCheck[2] = hitup;
         GroundCheck[3] = hitleft;
         SlopeCheck();
+
+        if (jumpAction.WasPressedThisFrame() && CanHomingAttack)
+        {
+            hACurrent.CheckHoming();
+        }
     }
 
 
@@ -357,10 +362,7 @@ public class PlayerMovement : MonoBehaviour
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
-            if(jumpAction.IsPressed() && CanHomingAttack)
-            { 
-                hACurrent.CheckHoming();
-            }
+            
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
 
@@ -372,7 +374,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (Time.time - jumpButtonPressed <= JumpGracePeriod && jumps == MaxJumps)
         {
-            Debug.Log("Arrg");
             _isFalling = false;
             _isJumping = true;
             jumps = 0;
@@ -485,6 +486,7 @@ public class PlayerMovement : MonoBehaviour
     public void ResetMomentum()
     {
         rb2D.velocity = Vector2.zero;
+        rb2D.angularVelocity = 0;
         currentSpeed = 0;
         groundAngle = 0;
         transform.rotation = Quaternion.identity;
@@ -546,9 +548,24 @@ public class PlayerMovement : MonoBehaviour
         currentHomingDirection = hACurrent.CurrentTarget;
         jumpButtonPressed = null;
         _isJumping = false;
-        _isFalling = true;
+        //_isFalling = true;
         _isHoming = true;
         currentSpeed = BaseMovementSpeed * hACurrent.Facing;
+    }
+
+    //Rebounds off Enemy if Homing attack is hit
+    public void HomingRebound()
+    {
+        Debug.Log("Done2");
+        _isHoming = false;
+        ResetMomentum();
+        CanHomingAttack = true;
+        _isJumping = true;
+        jumps = 0;
+        jumpMultiplyer = 1;
+        currentJumpMultiplierRate = JumpMultiplierRate;
+        _isFalling = false;
+        currentSpeed = 2 * hACurrent.Facing;
     }
 
     private void Slide()

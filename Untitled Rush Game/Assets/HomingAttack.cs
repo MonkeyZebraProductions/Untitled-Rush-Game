@@ -10,8 +10,10 @@ public class HomingAttack : MonoBehaviour
     public bool hasTarget;
     public int Facing;
     public int CurrentHomingMultiplier, HomingMultiplier;
+    public GameObject Retical;
 
     private PlayerMovement pM;
+    private float reticalSmallestDistance = 1000;
 
     private void Awake()
     {
@@ -23,6 +25,7 @@ public class HomingAttack : MonoBehaviour
         if(collision.gameObject.layer == 7)
         {
             targets.Add(collision.gameObject.transform);
+            Retical.SetActive(true);
         }
     }
 
@@ -31,15 +34,31 @@ public class HomingAttack : MonoBehaviour
         if (collision.gameObject.layer == 7)
         {
             targets.Clear();
+            reticalSmallestDistance = 1000f;
+            Retical.SetActive(false);
         }
+    }
+
+    private void Update()
+    {
+            //Checks closest Target
+            foreach (Transform target in targets)
+            {
+                if (Vector2.Distance(transform.position, target.position) < reticalSmallestDistance)
+                {
+                    Debug.Log("HomingAttack");
+                    reticalSmallestDistance = Vector2.Distance(transform.position, target.position);
+                    Retical.transform.position = target.position;
+                }
+            }
+        
     }
 
     //Checks if targets are withing Homing Vacinity
     public void CheckHoming()
     {
         pM.CanHomingAttack = false;
-        float smallestDistance=1000;
-        Debug.Log(smallestDistance);
+        float smallestDistance = 1000;
         //Player does a small dash if no targets are near
         if (targets.Count==0)
         {
