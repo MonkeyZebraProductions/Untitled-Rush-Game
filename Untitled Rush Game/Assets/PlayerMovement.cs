@@ -65,7 +65,7 @@ public class PlayerMovement : MonoBehaviour
     [Range(0.0f, 0.99f)]
     public float JumpMultiplierRate, JumpCancelRate,AirFriction;
     
-    private bool _isJumping,_isFalling;
+    private bool _isJumping,_isFalling,_wallJump;
     //private bool _jumpPressed;
     private float fallSpeed;
     private float jumpMultiplyer;
@@ -295,7 +295,7 @@ public class PlayerMovement : MonoBehaviour
             preBoostSpeed = currentSpeed;
         }
 
-        Debug.Log(rotationhit.collider);
+        Debug.Log(_wallJump);
         
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
         //Checks if Player is grounded. Does so automatically if player been in air for certain amount of time       
@@ -313,7 +313,6 @@ public class PlayerMovement : MonoBehaviour
             _isFalling = false;
             lastGroundTime = Time.time;
             //jumpMultiplyer = 1f;
-            
             jumps = MaxJumps;
             groundVar = 1;
             fallSpeed = 0;
@@ -368,9 +367,18 @@ public class PlayerMovement : MonoBehaviour
             groundVar = 0;
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.02f);
             
-            rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
+            
+            if(_wallJump)
+            {
+                rb2D.velocity = (20f * transform.up) + (-Vector3.up * 2f);
+            }
+            else
+            {
+                rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
+                transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.02f);
+            }
+            
         }
 
         if (Time.time - lastGroundTime >= JumpGracePeriod)
@@ -409,7 +417,7 @@ public class PlayerMovement : MonoBehaviour
             }
         }
         //increases gravity when falling
-        if (_isFalling)
+        if (_isFalling || _wallJump)
         {
             fallSpeed += FallAcceleration;
             rb2D.velocity -= Vector2.up * Gravity * fallSpeed * Time.deltaTime;
@@ -447,6 +455,12 @@ public class PlayerMovement : MonoBehaviour
         {
             index = 0;
             groundAngle = transform.rotation.z;
+            if(_wallJump)
+            {
+                _wallJump = false;
+                currentSpeed = 0;
+            }
+            
         }
 
         if (hitright && index != 1)
@@ -475,7 +489,7 @@ public class PlayerMovement : MonoBehaviour
                 index = 2;
                 groundAngle = transform.rotation.z;
             }
-
+            _wallJump = false;
         }
 
         if (hitleft && index != 3)
@@ -504,12 +518,16 @@ public class PlayerMovement : MonoBehaviour
     {
        
         jumpButtonPressed = Time.time;
-        
-        
+        if (index == 1 || index == 3)
+        {
+            _wallJump = true;
+        }
+
         currentAirFriction = AirFriction;
         if (jumps<MaxJumps)
         {
             CanHomingAttack = true;
+            
         }
         else
         {
@@ -542,6 +560,7 @@ public class PlayerMovement : MonoBehaviour
         currentHomingDirection = new Vector2 (HomingDashDirection.x*boostDir,HomingDashDirection.y);
         jumpButtonPressed = null;
         _isJumping = false;
+        _wallJump = false;
         _isFalling = true;
         _isHoming = true;
         currentSpeed = BaseMovementSpeed*boostDir;
@@ -555,6 +574,7 @@ public class PlayerMovement : MonoBehaviour
         currentHomingDirection = hACurrent.CurrentTarget;
         jumpButtonPressed = null;
         _isJumping = false;
+        _wallJump = false;
         //_isFalling = true;
         _isHoming = true;
         currentSpeed = BaseMovementSpeed * hACurrent.Facing;
@@ -588,6 +608,7 @@ public class PlayerMovement : MonoBehaviour
         //code to change hurtbox on this line, stompingHitbox.enabled= true
         currentAcceleration = 0;
         _isJumping = false;
+        _wallJump = false;
         _isFalling = false;
         rb2D.velocity -= Vector2.up * StompSpeed * Time.deltaTime;
     }
@@ -624,6 +645,7 @@ public class PlayerMovement : MonoBehaviour
         rb2D.AddForce(new Vector2(AirBoostDirection.x*boostDir,AirBoostDirection.y).normalized * AirBoostForce);
         currentSpeed = BoostSpeed*boostDir;
         airBoostNumber -= 1;
+        _wallJump = false;
     }
 
     private void OnEnable()
