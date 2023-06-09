@@ -28,12 +28,15 @@ public class PlayerMovement : MonoBehaviour
     private float slopeRotationAngle;
     private float slopeValue;
     private float sideOffset;
+    private float currentAirTime;
     private bool _isGrounded;
+    private bool _checkDown;
     private float groundAngle;
 
     public float SlopeLimit;
     public float SlopeMultiplier;
     public float SlopeStickiness;
+    public float AirTimeLimit;
     public float GroundCheckDistance = 0.7f;
     public LayerMask GroundLayer;
     
@@ -291,25 +294,26 @@ public class PlayerMovement : MonoBehaviour
             currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
             preBoostSpeed = currentSpeed;
         }
-            
-        
+
+        Debug.Log(rotationhit.collider);
         
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
-        //Checks if Player is grounded
-        if (rotationhit.collider != null)
+        //Checks if Player is grounded. Does so automatically if player been in air for certain amount of time       
+        if (rotationhit.collider != null || (hitdown &&_checkDown))
         {
             if(_isStomping)
             {
                 StompLand();
             }
+            _checkDown = false;
+            currentAirTime = 0;
             currentAcceleration = Acceleration;
             //Rotates Player if the player is grounded
             RotatePlayer();
-            _isGrounded = true;
             _isFalling = false;
             lastGroundTime = Time.time;
             //jumpMultiplyer = 1f;
-            //Adds force to let player stick on walls
+            
             jumps = MaxJumps;
             groundVar = 1;
             fallSpeed = 0;
@@ -337,16 +341,20 @@ public class PlayerMovement : MonoBehaviour
             else
             {
                 _isBreaking = false;
-            }
+            }                                                                        //Adds force to let player stick on walls                                       
             rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
         }
         else
         {
+            currentAirTime += Time.deltaTime;
+            if(currentAirTime>AirTimeLimit)
+            {
+                _checkDown = true;
+            }
             if (!_isStomping)
             {
                 currentAcceleration = AirAcceleration;
             }
-
             if(boostAction.IsPressed() && airBoostNumber==AirBoostMax && _isBoosting==false)
             {
                 Debug.Log("Boost");
@@ -357,11 +365,10 @@ public class PlayerMovement : MonoBehaviour
                 _isStomping = true;
                 ResetMomentum();
             }
-            _isGrounded = false;
             groundVar = 0;
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
-            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.1f);
+            transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.02f);
             
             rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
         }
