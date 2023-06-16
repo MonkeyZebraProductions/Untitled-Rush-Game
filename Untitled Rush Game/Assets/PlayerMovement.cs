@@ -53,6 +53,7 @@ public class PlayerMovement : MonoBehaviour
     private float currentAcceleration;
     public bool IsFacingLeft;
     private bool _isBreaking;
+    private int flip = 1;
 
     //Player Jump Variables
     [Header("Jumping")]
@@ -166,6 +167,8 @@ public class PlayerMovement : MonoBehaviour
         {
             hACurrent.CheckHoming();
         }
+
+        Debug.Log(index);
     }
 
 
@@ -173,7 +176,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (DebugUI)
         {
-            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity;
+            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip;
         }
 
 
@@ -188,6 +191,7 @@ public class PlayerMovement : MonoBehaviour
         moveAction = playerInput.actions["Move"];
         Vector2 moveInput = moveAction.ReadValue<Vector2>();
         HomingLeft.SetActive(!HomingRight.activeSelf);
+        
         if(HomingRight.activeSelf)
         {
             hACurrent = hARight;
@@ -233,7 +237,6 @@ public class PlayerMovement : MonoBehaviour
             else
             {
                 //Slowly moves player speed to 0 if movement input is 0 at a slower rate
-
                 if (currentSpeed > 0 || currentSpeed < 0)
                 {
                     currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, currentAcceleration / 2);
@@ -291,11 +294,14 @@ public class PlayerMovement : MonoBehaviour
         }
         else //Use Slope Physics if not Boosting
         {
+            if(flip==-1)
+            {
+                currentSpeed *= -1;
+            }
             currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
+            flip = 1;
             preBoostSpeed = currentSpeed;
         }
-
-        Debug.Log(_wallJump);
         
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
         //Checks if Player is grounded. Does so automatically if player been in air for certain amount of time       
@@ -305,19 +311,7 @@ public class PlayerMovement : MonoBehaviour
             {
                 StompLand();
             }
-            _checkDown = false;
-            currentAirTime = 0;
-            currentAcceleration = Acceleration;
-            //Rotates Player if the player is grounded
-            RotatePlayer();
-            _isFalling = false;
-            lastGroundTime = Time.time;
-            //jumpMultiplyer = 1f;
-            jumps = MaxJumps;
-            groundVar = 1;
-            fallSpeed = 0;
-            _isHoming = false;
-            airBoostNumber = AirBoostMax;
+            GroundPlayer();
             if (slideAction.IsPressed())
             {
                 _isSliding = true;
@@ -341,7 +335,7 @@ public class PlayerMovement : MonoBehaviour
             {
                 _isBreaking = false;
             }                                                                        //Adds force to let player stick on walls                                       
-            rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
+            rb2D.velocity = (currentSpeed * transform.right*flip) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
         }
         else
         {
@@ -368,14 +362,14 @@ public class PlayerMovement : MonoBehaviour
             //StartCoroutine(CorrectRotation());
             groundAngle = 0;
             
-            
+            //jump can't change direction when jumping off wall
             if(_wallJump)
             {
                 rb2D.velocity = (20f * transform.up) + (-Vector3.up * 2f);
             }
             else
             {
-                rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right) + (-Vector3.up * 2f);
+                rb2D.velocity = ((currentSpeed * currentAirFriction) * transform.right*flip) + (-Vector3.up * 2f);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, 0), 0.02f);
             }
             
@@ -434,13 +428,11 @@ public class PlayerMovement : MonoBehaviour
     //rotates player based on slope
     private void RotatePlayer()
     {
-        
-
         //Debug.Log("Hit collider " + GroundCheck[index].collider + ", at " + GroundCheck[index].point + ", normal " + GroundCheck[index].normal);
         Debug.DrawRay(GroundCheck[index].point, GroundCheck[index].normal * 2f, Color.green);
         Debug.DrawRay(rotationhit.point, rotationhit.normal * 2f, Color.yellow);
         groundAngle = Mathf.Atan2(-rotationhit.normal.x, rotationhit.normal.y);
-        transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, 0, Mathf.Rad2Deg * groundAngle), 1f);
+        transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(0, transform.rotation.y, Mathf.Rad2Deg * groundAngle), 1f);
         //transform.rotation = Quaternion.Euler(0, 0, Mathf.Rad2Deg * Mathf.Atan2(-GroundCheck[index].normal.x,GroundCheck[index].normal.y));
         //storedRotation = new Vector2(GroundCheck[index].normal.x * 1.5f, GroundCheck[index].normal.y / 1.5f).normalized;
         //_isFalling = false;
@@ -458,26 +450,25 @@ public class PlayerMovement : MonoBehaviour
             if(_wallJump)
             {
                 _wallJump = false;
-                currentSpeed = 0;
+                _isJumping = false;
+                ResetMomentum();
             }
             
         }
 
         if (hitright && index != 1)
         {
-            if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - slopeRotationAngle) < SlopeLimit)
+            if ((Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - slopeRotationAngle) < SlopeLimit) 
+                || index == 3)
             {
+                if (index == 3)
+                {
+                    transform.rotation = Quaternion.Euler(0, 0, Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y));
+                    flip *= -1;
+                    _wallJump = false;
+                }
                 index = 1;
                 groundAngle = transform.rotation.z;
-            }
-            else
-            {
-                //if (!_StopOnWall)
-                //{
-                //    _currentspeed = 0;
-                //    _StopOnWall = true;
-                //}
-
             }
         }
 
@@ -495,13 +486,41 @@ public class PlayerMovement : MonoBehaviour
         if (hitleft && index != 3)
         {
 
-            if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitleft.normal.x, hitleft.normal.y) - slopeRotationAngle) < SlopeLimit)
+            if (Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitleft.normal.x, hitleft.normal.y) - slopeRotationAngle) < SlopeLimit
+                || index == 1)
             {
+                if (index == 1)
+                {
+                    //GroundPlayer();
+                    transform.rotation = Quaternion.Euler(0, 0, Mathf.Rad2Deg * Mathf.Atan2(-hitleft.normal.x, hitleft.normal.y));
+                    //transform.localScale = new Vector2(-1, 1);
+                    flip *= -1;
+                    Debug.Log("Wallrun");
+                    _wallJump = false;
+                }
                 index = 3;
                 groundAngle = transform.rotation.z;
             }
 
         }
+    }
+
+    public void GroundPlayer()
+    {
+        _checkDown = false;
+        currentAirTime = 0;
+        currentAcceleration = Acceleration;
+        //Rotates Player if the player is grounded
+        RotatePlayer();
+        _isJumping = false;
+        _isFalling = false;
+        lastGroundTime = Time.time;
+        //jumpMultiplyer = 1f;
+        jumps = MaxJumps;
+        groundVar = 1;
+        fallSpeed = 0;
+        _isHoming = false;
+        airBoostNumber = AirBoostMax;
     }
 
     public void ResetMomentum()
@@ -518,7 +537,7 @@ public class PlayerMovement : MonoBehaviour
     {
        
         jumpButtonPressed = Time.time;
-        if (index == 1 || index == 3)
+        if (index != 0)
         {
             _wallJump = true;
         }
@@ -577,6 +596,7 @@ public class PlayerMovement : MonoBehaviour
         _wallJump = false;
         //_isFalling = true;
         _isHoming = true;
+        _isBoosting = false;
         currentSpeed = BaseMovementSpeed * hACurrent.Facing;
     }
 
@@ -587,6 +607,7 @@ public class PlayerMovement : MonoBehaviour
         _isHoming = false;
         ResetMomentum();
         CanHomingAttack = true;
+        _isBoosting = false;
         _isJumping = true;
         jumps = 0;
         jumpMultiplyer = 1;
