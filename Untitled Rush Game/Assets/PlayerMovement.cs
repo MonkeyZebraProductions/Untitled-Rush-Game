@@ -47,6 +47,7 @@ public class PlayerMovement : MonoBehaviour
     public float CappedMovementSpeed;
     public float Acceleration;
     public float BreakPower;
+    public bool CapSpeed;
 
     private float currentSpeed;
     private float preBoostSpeed;
@@ -99,8 +100,7 @@ public class PlayerMovement : MonoBehaviour
     //Player Boost Variables
     [Header("Boosting")]
     public float BoostSpeed;
-    public float Mach2BoostSpeed;
-    public float Mach3BoostSpeed;
+    public float BoostMultiplyer;
     public float AirBoostForce;
     public Vector2 AirBoostDirection;
     public int AirBoostMax;
@@ -179,7 +179,7 @@ public class PlayerMovement : MonoBehaviour
             CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip;
         }
 
-
+        
         slopeRotationAngle = transform.rotation.eulerAngles.z;
         if (slopeRotationAngle > 180)
         {
@@ -192,6 +192,7 @@ public class PlayerMovement : MonoBehaviour
         Vector2 moveInput = moveAction.ReadValue<Vector2>();
         HomingLeft.SetActive(!HomingRight.activeSelf);
         
+        //Activates homing attack triggers depending on direction;
         if(HomingRight.activeSelf)
         {
             hACurrent = hARight;
@@ -259,38 +260,34 @@ public class PlayerMovement : MonoBehaviour
         //Sets velocity
         if(_isBoosting)
         {
-            if(!IsFacingLeft)
+            if (!IsFacingLeft)
             {
                 // Speed of the boost depends of the Player speed before the boost button is pressed
-                if (preBoostSpeed > Mach2BoostSpeed * 0.9f)
+                if (preBoostSpeed > BaseMovementSpeed)
                 {
-                    currentSpeed = Mach3BoostSpeed;
-                }
-                else if (preBoostSpeed > BoostSpeed * 0.9f)
-                {
-                    currentSpeed = Mach2BoostSpeed;
+                    currentSpeed = preBoostSpeed * BoostMultiplyer;
                 }
                 else
                 {
                     currentSpeed = BoostSpeed;
                 }
+
             }
             else
             {
-                if (preBoostSpeed < -Mach2BoostSpeed * 0.9f)
+                // Speed of the boost depends of the Player speed before the boost button is pressed
+                if (preBoostSpeed < -BaseMovementSpeed)
                 {
-                    currentSpeed = -Mach3BoostSpeed;
-                }
-                else if (preBoostSpeed < -BoostSpeed * 0.9f)
-                {
-                    currentSpeed = -Mach2BoostSpeed;
+                    currentSpeed = preBoostSpeed * BoostMultiplyer;
                 }
                 else
                 {
                     currentSpeed = -BoostSpeed;
                 }
+
             }
-            
+
+
         }
         else //Use Slope Physics if not Boosting
         {
@@ -301,6 +298,27 @@ public class PlayerMovement : MonoBehaviour
             currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
             flip = 1;
             preBoostSpeed = currentSpeed;
+            if (boostAction.IsPressed())
+            {
+                if ((!IsFacingLeft && boostDir == -1) || (IsFacingLeft && boostDir == 1))
+                {
+                    Debug.Log("BoostFloor");
+                    currentSpeed *= -1;
+                }
+
+            }
+        }
+   
+        if(CapSpeed)
+        {
+            if (currentSpeed > CappedMovementSpeed)
+            {
+                currentSpeed = CappedMovementSpeed;
+            }
+            else if (currentSpeed < -CappedMovementSpeed)
+            {
+                currentSpeed = -CappedMovementSpeed;
+            }
         }
         
         //rb2D.velocity = (currentSpeed * transform.right) + (-Vector3.up*2f);
@@ -445,6 +463,10 @@ public class PlayerMovement : MonoBehaviour
         
         if (hitdown && index != 0)
         {
+            if (index == 2)
+            {
+                flip *= -1;
+            }
             index = 0;
             groundAngle = transform.rotation.z;
             if(_wallJump)
@@ -452,6 +474,7 @@ public class PlayerMovement : MonoBehaviour
                 _wallJump = false;
                 _isJumping = false;
                 ResetMomentum();
+                
             }
             
         }
@@ -480,7 +503,7 @@ public class PlayerMovement : MonoBehaviour
                 index = 2;
                 groundAngle = transform.rotation.z;
             }
-            _wallJump = false;
+            //_wallJump = false;
         }
 
         if (hitleft && index != 3)
