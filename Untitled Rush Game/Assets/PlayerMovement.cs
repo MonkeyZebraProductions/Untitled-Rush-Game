@@ -48,12 +48,12 @@ public class PlayerMovement : MonoBehaviour
     public float Acceleration;
     public float BreakPower;
     public bool CapSpeed;
+    public bool IsFacingLeft;
 
     private float currentSpeed;
     private float preBoostSpeed;
     private float currentAcceleration;
-    public bool IsFacingLeft;
-    private bool _isBreaking;
+    private bool _isBreaking,_wallReset;
     private int flip = 1;
 
     //Player Jump Variables
@@ -105,9 +105,10 @@ public class PlayerMovement : MonoBehaviour
     public Vector2 AirBoostDirection;
     public int AirBoostMax;
 
+    private BoostBar bB;
     private int airBoostNumber;
     private int boostDir;
-    private bool _isBoosting;
+    private bool _isBoosting,_wasAirBoost;
 
     //Debug Variables
     public bool DebugUI;
@@ -125,6 +126,7 @@ public class PlayerMovement : MonoBehaviour
         capCollider2D = GetComponent<CapsuleCollider2D>();
         hALeft = HomingLeft.GetComponent<HomingAttack>();
         hARight = HomingRight.GetComponent<HomingAttack>();
+        bB = FindObjectOfType<BoostBar>();
     }
     // Start is called before the first frame update
     void Start()
@@ -163,12 +165,18 @@ public class PlayerMovement : MonoBehaviour
         GroundCheck[3] = hitleft;
         SlopeCheck();
 
+        //Sees if Player can homing attack if jump button is pressed;
         if (jumpAction.WasPressedThisFrame() && CanHomingAttack)
         {
             hACurrent.CheckHoming();
         }
 
         Debug.Log(index);
+
+        if(Mathf.Abs(currentSpeed)>10)
+        {
+            _wallReset = false;
+        }
     }
 
 
@@ -176,11 +184,18 @@ public class PlayerMovement : MonoBehaviour
     {
         if (DebugUI)
         {
+            CurrentSpeedText.enabled = true;
             CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip;
+        }
+        else
+        {
+            CurrentSpeedText.enabled = false;
         }
 
         
         slopeRotationAngle = transform.rotation.eulerAngles.z;
+
+        //Flips slope rotation
         if (slopeRotationAngle > 180)
         {
             slopeRotationAngle -= 360;
@@ -246,9 +261,11 @@ public class PlayerMovement : MonoBehaviour
         }
         else
         {
+            //Slows player down if breaking
             currentSpeed = Mathf.MoveTowards(currentSpeed, 0.0f, BreakPower);
         }
 
+        //Determines if player is facing left or right based on speed;
         if(currentSpeed>0)
         {
             IsFacingLeft = false;
@@ -257,36 +274,39 @@ public class PlayerMovement : MonoBehaviour
         {
             IsFacingLeft = true;
         }
+
         //Sets velocity
         if(_isBoosting)
         {
-            if (!IsFacingLeft)
+            if (!_wasAirBoost)
             {
-                // Speed of the boost depends of the Player speed before the boost button is pressed
-                if (preBoostSpeed > BaseMovementSpeed)
+                if (!IsFacingLeft)
                 {
-                    currentSpeed = preBoostSpeed * BoostMultiplyer;
+                    // Speed of the boost depends of the Player speed before the boost button is pressed
+                    if (preBoostSpeed > BaseMovementSpeed)
+                    {
+                        currentSpeed = preBoostSpeed * BoostMultiplyer;
+                    }
+                    else
+                    {
+                        currentSpeed = BoostSpeed;
+                    }
+
                 }
                 else
                 {
-                    currentSpeed = BoostSpeed;
-                }
+                    // Speed of the boost depends of the Player speed before the boost button is pressed
+                    if (preBoostSpeed < -BaseMovementSpeed)
+                    {
+                        currentSpeed = preBoostSpeed * BoostMultiplyer;
+                    }
+                    else
+                    {
+                        currentSpeed = -BoostSpeed;
+                    }
 
+                }
             }
-            else
-            {
-                // Speed of the boost depends of the Player speed before the boost button is pressed
-                if (preBoostSpeed < -BaseMovementSpeed)
-                {
-                    currentSpeed = preBoostSpeed * BoostMultiplyer;
-                }
-                else
-                {
-                    currentSpeed = -BoostSpeed;
-                }
-
-            }
-
 
         }
         else //Use Slope Physics if not Boosting
@@ -308,7 +328,8 @@ public class PlayerMovement : MonoBehaviour
 
             }
         }
-   
+        
+        //Makes sure speed doesn't go above the cap
         if(CapSpeed)
         {
             if (currentSpeed > CappedMovementSpeed)
@@ -341,9 +362,10 @@ public class PlayerMovement : MonoBehaviour
                 _isSliding = false;
                 currentMomentumMultiplier = 1;
             }
-            if(boostAction.IsPressed())
+            if(boostAction.IsPressed() && bB.CanBoost)
             {
                 _isBoosting = true;
+                bB.StartDecreace = true;
             }
             if(breakAction.IsPressed())
             {
@@ -366,10 +388,11 @@ public class PlayerMovement : MonoBehaviour
             {
                 currentAcceleration = AirAcceleration;
             }
-            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax && _isBoosting==false)
+            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax && _isBoosting==false && bB.CanBoost)
             {
                 Debug.Log("Boost");
                 AirBoost();
+                bB.StartDecreace = true;
             }
             if (slideAction.IsPressed())
             {
@@ -392,13 +415,15 @@ public class PlayerMovement : MonoBehaviour
             }
             
         }
-
+        
+        //Cyote Time
         if (Time.time - lastGroundTime >= JumpGracePeriod)
         {
             jumps = 0;
             _isFalling = true;
         }
 
+        //Setup to Perform Jump
         if (Time.time - jumpButtonPressed <= JumpGracePeriod && jumps == MaxJumps)
         {
             _isFalling = false;
@@ -410,6 +435,7 @@ public class PlayerMovement : MonoBehaviour
             lastGroundTime = null;
         }
 
+        //Moves Player towards homing targer;
         if(_isHoming)
         {
             rb2D.AddForce(currentHomingDirection.normalized * (HomingAttackSpeed*(1+Mathf.Abs(rb2D.velocity.x/8)))*hACurrent.CurrentHomingMultiplier * Time.deltaTime);
@@ -481,7 +507,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (hitright && index != 1)
         {
-            if ((Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - slopeRotationAngle) < SlopeLimit) 
+            if ((Mathf.Abs(Mathf.Rad2Deg * Mathf.Atan2(-hitright.normal.x, hitright.normal.y) - slopeRotationAngle) < SlopeLimit)
                 || index == 3)
             {
                 if (index == 3)
@@ -493,7 +519,17 @@ public class PlayerMovement : MonoBehaviour
                 index = 1;
                 groundAngle = transform.rotation.z;
             }
+            else
+            {
+                if(!_wallReset)
+                {
+                    ResetMomentum();
+                    _wallReset = true;
+                }
+                
+            }
         }
+
 
         if (hitup && index != 2)
         {
@@ -524,6 +560,15 @@ public class PlayerMovement : MonoBehaviour
                 index = 3;
                 groundAngle = transform.rotation.z;
             }
+            else
+            {
+                if (!_wallReset)
+                {
+                    ResetMomentum();
+                    _wallReset = true;
+                }
+
+            }
 
         }
     }
@@ -546,6 +591,7 @@ public class PlayerMovement : MonoBehaviour
         airBoostNumber = AirBoostMax;
     }
 
+    //Sets all speed values to 0
     public void ResetMomentum()
     {
         rb2D.velocity = Vector2.zero;
@@ -596,6 +642,7 @@ public class PlayerMovement : MonoBehaviour
         
     }
 
+    //Dashes foward
     public IEnumerator HomingDash()
     {
         ResetMomentum();
@@ -610,6 +657,7 @@ public class PlayerMovement : MonoBehaviour
         _isHoming = false;
     }
 
+    //Dashes towards object for an attack
     public void HomingAttack()
     {
         ResetMomentum();
@@ -666,19 +714,13 @@ public class PlayerMovement : MonoBehaviour
         _isStomping = false;
     }
 
+    //ends boost
     private void BoostCancel()
     {
         if(_isBoosting)
         {
-            if(currentSpeed>BaseMovementSpeed && !IsFacingLeft)
-            {
-                currentSpeed = BaseMovementSpeed;
-            }
-            else if(currentSpeed < -BaseMovementSpeed && IsFacingLeft)
-            {
-                currentSpeed = -BaseMovementSpeed;
-            }
-            
+            currentSpeed /= BoostMultiplyer;
+            _wasAirBoost = false;
             _isBoosting = false;
         }
         
@@ -690,6 +732,7 @@ public class PlayerMovement : MonoBehaviour
         currentSpeed = BoostSpeed*boostDir;
         airBoostNumber -= 1;
         _wallJump = false;
+        _wasAirBoost = true;
     }
 
     private void OnEnable()
