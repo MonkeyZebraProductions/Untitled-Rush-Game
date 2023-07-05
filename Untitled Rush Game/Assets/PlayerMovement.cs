@@ -521,7 +521,8 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                if(!_wallReset)
+                //Stops breifly stops movment if wall is hit
+                if (!_wallReset)
                 {
                     ResetMomentum();
                     _wallReset = true;
@@ -562,6 +563,7 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
+                //Stops breifly stops movment if wall is hit
                 if (!_wallReset)
                 {
                     ResetMomentum();
