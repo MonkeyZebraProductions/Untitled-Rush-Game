@@ -173,7 +173,7 @@ public class PlayerMovement : MonoBehaviour
 
         Debug.Log(index);
 
-        if(Mathf.Abs(currentSpeed)>10)
+        if(Mathf.Abs(currentSpeed)>1)
         {
             _wallReset = false;
         }
@@ -601,6 +601,7 @@ public class PlayerMovement : MonoBehaviour
         currentSpeed = 0;
         groundAngle = 0;
         transform.rotation = Quaternion.identity;
+        fallSpeed=0;
     }
 
     //Sets mode to Jumping when Jump button is pressed

@@ -11,18 +11,21 @@ public class SplineTraveling : MonoBehaviour
 
     private SplineAnimate playerSpline;
     private TrickSystem tS;
+    private PlayerMovement pM;
+    private bool splineEnded;
 
 
     private void Start()
     {
         tS = FindObjectOfType<TrickSystem>();
+        pM = FindObjectOfType<PlayerMovement>();
     }
 
     private void Update()
     {
         if (playerSpline.elapsedTime > Duration && playerSpline != null)
         {
-            tS.TrickState = false;
+            StopSpline();
         }
     }
 
@@ -30,7 +33,7 @@ public class SplineTraveling : MonoBehaviour
     {
         if(collision.gameObject.tag=="Player")
         {
-            
+            splineEnded = false;
             tS.TrickState = CanTrick;
             playerSpline = collision.gameObject.GetComponent<SplineAnimate>();
             playerSpline.splineContainer = gameObject.GetComponent<SplineContainer>();
@@ -50,7 +53,13 @@ public class SplineTraveling : MonoBehaviour
 
     public void StopSpline()
     {
-        playerSpline.Pause();
-        tS.TrickState = false;
+        if(!splineEnded)
+        {
+            playerSpline.Pause();
+            tS.TrickState = false;
+            pM.ResetMomentum();
+            splineEnded = true;
+        }
+        
     }
 }
