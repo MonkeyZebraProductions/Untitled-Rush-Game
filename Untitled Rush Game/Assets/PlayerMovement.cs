@@ -75,6 +75,8 @@ public class PlayerMovement : MonoBehaviour
     private float currentAirFriction;
     private float? lastGroundTime;
     private float? jumpButtonPressed;
+    private Vector2 velocityBeforeJump;
+    private float velocityYBeforeJump;
     private int jumps;
 
     [Header("HomingAttack")]
@@ -137,6 +139,7 @@ public class PlayerMovement : MonoBehaviour
         jumps = MaxJumps;
         airBoostNumber = AirBoostMax;
         boostDir = 1;
+        _isJumping=true;
     }
 
     // Update is called once per frame
@@ -185,7 +188,7 @@ public class PlayerMovement : MonoBehaviour
         if (DebugUI)
         {
             CurrentSpeedText.enabled = true;
-            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip;
+            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip + " Ground Angle: " + Mathf.Rad2Deg*groundAngle;
         }
         else
         {
@@ -444,7 +447,8 @@ public class PlayerMovement : MonoBehaviour
         if (_isJumping)
         {
             Vector2 tUp = transform.up;
-            rb2D.velocity += tUp * JumpSpeed * jumpMultiplyer;
+            Vector2 tRight = transform.right;
+            rb2D.velocity += (tUp * JumpSpeed * jumpMultiplyer) + tRight*(currentSpeed/2);
 
             jumpMultiplyer *= currentJumpMultiplierRate;
 
@@ -609,7 +613,9 @@ public class PlayerMovement : MonoBehaviour
     {
        
         jumpButtonPressed = Time.time;
-        if (index != 0)
+        velocityBeforeJump = rb2D.velocity*Mathf.Sin(groundAngle);
+        velocityYBeforeJump = 1+(rb2D.velocity.y/BaseMovementSpeed);
+        if (index != 0 && Mathf.Abs(Mathf.Rad2Deg * groundAngle) > 85)
         {
             _wallJump = true;
         }
@@ -687,7 +693,8 @@ public class PlayerMovement : MonoBehaviour
         jumpMultiplyer = 1;
         currentJumpMultiplierRate = JumpMultiplierRate;
         _isFalling = false;
-        currentSpeed = 2 * hACurrent.Facing;
+        JumpVoid();
+        currentSpeed = 10 * hACurrent.Facing;
     }
 
     private void Slide()
