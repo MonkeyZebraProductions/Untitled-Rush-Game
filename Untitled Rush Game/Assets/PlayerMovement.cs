@@ -4,6 +4,14 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using TMPro;
 
+public enum PlayerStates
+{
+    Grounded,
+    Jumping,
+    Boosing,
+    Falling
+}
+
 public class PlayerMovement : MonoBehaviour
 {
 
@@ -32,6 +40,7 @@ public class PlayerMovement : MonoBehaviour
     private bool _isGrounded;
     private bool _checkDown;
     private float groundAngle;
+    private float currentSlopeStickiness;
 
     public float SlopeLimit;
     public float SlopeMultiplier;
@@ -47,6 +56,7 @@ public class PlayerMovement : MonoBehaviour
     public float CappedMovementSpeed;
     public float Acceleration;
     public float BreakPower;
+    public float MinStickSpeed;
     public bool CapSpeed;
     public bool IsFacingLeft;
 
@@ -72,7 +82,7 @@ public class PlayerMovement : MonoBehaviour
     private float fallSpeed;
     private float jumpMultiplyer;
     private float currentJumpMultiplierRate;
-    private float currentAirFriction;
+    private float currentAirFriction = 1;
     private float? lastGroundTime;
     private float? jumpButtonPressed;
     private Vector2 velocityBeforeJump;
@@ -139,7 +149,7 @@ public class PlayerMovement : MonoBehaviour
         jumps = MaxJumps;
         airBoostNumber = AirBoostMax;
         boostDir = 1;
-        _isJumping=true;
+        currentSlopeStickiness = SlopeStickiness;
     }
 
     // Update is called once per frame
@@ -188,7 +198,7 @@ public class PlayerMovement : MonoBehaviour
         if (DebugUI)
         {
             CurrentSpeedText.enabled = true;
-            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip + " Ground Angle: " + Mathf.Rad2Deg*groundAngle;
+            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip + " Ground Angle: " + Mathf.Rad2Deg*groundAngle + " Air Time: " + currentAirTime + " Collider: " + rotationhit.collider;
         }
         else
         {
@@ -309,6 +319,7 @@ public class PlayerMovement : MonoBehaviour
                     }
 
                 }
+                currentSlopeStickiness = SlopeStickiness * 2;
             }
 
         }
@@ -328,7 +339,15 @@ public class PlayerMovement : MonoBehaviour
                     Debug.Log("BoostFloor");
                     currentSpeed *= -1;
                 }
-
+            }
+            
+            if(Mathf.Abs(currentSpeed)>MinStickSpeed)
+            {
+                currentSlopeStickiness = SlopeStickiness;
+            }
+            else
+            { 
+                currentSlopeStickiness= 0;
             }
         }
         
@@ -378,12 +397,13 @@ public class PlayerMovement : MonoBehaviour
             {
                 _isBreaking = false;
             }                                                                        //Adds force to let player stick on walls                                       
-            rb2D.velocity = (currentSpeed * transform.right*flip) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * SlopeStickiness * groundVar);
+            rb2D.velocity = (currentSpeed * transform.right*flip) + (-Vector3.up * 2f) + (transform.up * -Mathf.Abs(currentSpeed) * currentSlopeStickiness * groundVar);
         }
         else
         {
             currentAirTime += Time.deltaTime;
-            if(currentAirTime>AirTimeLimit)
+            currentSlopeStickiness = 0;
+            if (currentAirTime>AirTimeLimit)
             {
                 _checkDown = true;
             }
