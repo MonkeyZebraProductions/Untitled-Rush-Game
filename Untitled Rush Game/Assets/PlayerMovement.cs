@@ -8,8 +8,10 @@ public enum PlayerStates
 {
     Grounded,
     Jumping,
-    Boosing,
-    Falling
+    Boosting,
+    Falling,
+    Homing,
+    Stomping
 }
 
 public class PlayerMovement : MonoBehaviour
@@ -98,6 +100,7 @@ public class PlayerMovement : MonoBehaviour
     public GameObject HomingLeft, HomingRight;
     private Vector2 currentHomingDirection;
     private HomingAttack hALeft,hARight,hACurrent;
+    private float preHASpeed;
 
     //Player Slide Variables
     [Header("Sliding")]
@@ -184,8 +187,6 @@ public class PlayerMovement : MonoBehaviour
             hACurrent.CheckHoming();
         }
 
-        Debug.Log(index);
-
         if(Mathf.Abs(currentSpeed)>1)
         {
             _wallReset = false;
@@ -198,7 +199,8 @@ public class PlayerMovement : MonoBehaviour
         if (DebugUI)
         {
             CurrentSpeedText.enabled = true;
-            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip + " Ground Angle: " + Mathf.Rad2Deg*groundAngle + " Air Time: " + currentAirTime + " Collider: " + rotationhit.collider;
+            CurrentSpeedText.text = "Current Speed: " + rb2D.velocity + " Flip: " + flip + " Ground Angle: " + Mathf.Rad2Deg*groundAngle + 
+                " Air Time: " + currentAirTime + " Airboosts: " + airBoostNumber;
         }
         else
         {
@@ -332,7 +334,7 @@ public class PlayerMovement : MonoBehaviour
             currentSpeed -= Mathf.Sin(groundAngle) * SlopeMultiplier * currentMomentumMultiplier;
             flip = 1;
             preBoostSpeed = currentSpeed;
-            if (boostAction.IsPressed())
+            if (boostAction.IsPressed() && airBoostNumber>0)
             {
                 if ((!IsFacingLeft && boostDir == -1) || (IsFacingLeft && boostDir == 1))
                 {
@@ -411,9 +413,8 @@ public class PlayerMovement : MonoBehaviour
             {
                 currentAcceleration = AirAcceleration;
             }
-            if(boostAction.IsPressed() && airBoostNumber==AirBoostMax && _isBoosting==false && bB.CanBoost)
+            if(boostAction.IsPressed() && airBoostNumber>0 && _isBoosting==false && bB.CanBoost && !_wasAirBoost)
             {
-                Debug.Log("Boost");
                 AirBoost();
                 bB.StartDecreace = true;
             }
@@ -689,6 +690,7 @@ public class PlayerMovement : MonoBehaviour
     //Dashes towards object for an attack
     public void HomingAttack()
     {
+        preHASpeed = Mathf.Abs(currentSpeed);
         ResetMomentum();
         currentHomingDirection = hACurrent.CurrentTarget;
         jumpButtonPressed = null;
@@ -703,7 +705,8 @@ public class PlayerMovement : MonoBehaviour
     //Rebounds off Enemy if Homing attack is hit
     public void HomingRebound()
     {
-        Debug.Log("Done2");
+        Debug.Log("Homing Rebound");
+        airBoostNumber = AirBoostMax;
         _isHoming = false;
         ResetMomentum();
         CanHomingAttack = true;
@@ -714,7 +717,11 @@ public class PlayerMovement : MonoBehaviour
         currentJumpMultiplierRate = JumpMultiplierRate;
         _isFalling = false;
         JumpVoid();
-        currentSpeed = 10 * hACurrent.Facing;
+        if (preHASpeed<25)
+        {
+            preHASpeed = 25;
+        }
+        currentSpeed = preHASpeed * hACurrent.Facing;
     }
 
     private void Slide()
@@ -750,13 +757,14 @@ public class PlayerMovement : MonoBehaviour
         if(_isBoosting)
         {
             currentSpeed /= BoostMultiplyer;
-            _wasAirBoost = false;
             _isBoosting = false;
         }
+        _wasAirBoost = false;
         
     }
     private void AirBoost()
     {
+        Debug.Log("AIR BOOST");
         ResetMomentum();
         rb2D.AddForce(new Vector2(AirBoostDirection.x*boostDir,AirBoostDirection.y).normalized * AirBoostForce);
         currentSpeed = BoostSpeed*boostDir;

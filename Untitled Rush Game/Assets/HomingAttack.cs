@@ -46,7 +46,6 @@ public class HomingAttack : MonoBehaviour
             {
                 if (Vector2.Distance(transform.position, target.position) < reticalSmallestDistance)
                 {
-                    Debug.Log("HomingAttack");
                     reticalSmallestDistance = Vector2.Distance(transform.position, target.position);
                     Retical.transform.position = target.position;
                 }
@@ -62,7 +61,6 @@ public class HomingAttack : MonoBehaviour
         //Player does a small dash if no targets are near
         if (targets.Count==0)
         {
-            Debug.Log("HomingDash");
             CurrentHomingMultiplier = 1;
             StartCoroutine(pM.HomingDash());
         }
@@ -73,7 +71,6 @@ public class HomingAttack : MonoBehaviour
             {
                 if(Vector2.Distance(transform.position,target.position) < smallestDistance)
                 {
-                    Debug.Log("HomingAttack");
                     CurrentHomingMultiplier = HomingMultiplier;
                     smallestDistance = Vector2.Distance(transform.position, target.position);
                     CurrentTarget = target.position - transform.position;
